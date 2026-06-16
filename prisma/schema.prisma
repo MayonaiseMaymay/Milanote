@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // oder postgresql
+}
+
+model User {
+  id      String  @id @default(cuid())
+  email   String  @unique
+  name    String?
+  boards  Board[]
+}
+
+model Board {
+  id      String @id @default(cuid())
+  title   String
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  notes   Note[]
+  createdAt DateTime @default(now())
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  x         Float    // Position X (für Drag & Drop)
+  y         Float    // Position Y
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id])
+  createdAt DateTime @default(now())
+}
