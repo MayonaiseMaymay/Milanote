@@ -1,6 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { get_node_Text as Get_node_Text } from "./get_node_Text";
+
 import {
   Search,
   Bell,
@@ -21,13 +23,24 @@ import {
 } from "lucide-react";
 
 export default function GetNodeBoard() {
+  // State für unsere Nodes. Wir starten mit einem leeren Array.
+  const [nodes, setNodes] = useState<number[]>([]);
+
+  // Funktion, um eine neue Node zum Board hinzuzufügen
+  const addTextNode = () => {
+    // Wir nutzen Date.now() als simple, einzigartige ID für den Key
+    setNodes([...nodes, Date.now()]);
+  };
+
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
       
       {/* SIDEBAR */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
-          <SidebarIcon icon={<Type size={20} />} label="Note" />
+          {/* Hier rufen wir addTextNode auf, wenn das Icon geklickt wird */}
+          <SidebarIcon icon={<Type size={20} />} label="Note" onClick={addTextNode} />
+          
           <SidebarIcon icon={<Link size={20} />} label="Link" />
           <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
           <SidebarIcon icon={<PenTool size={20} />} label="Line" active />
@@ -100,12 +113,15 @@ export default function GetNodeBoard() {
 
           {/* Badge */}
           <div className="absolute top-4 right-4 bg-[#333] px-3 py-1.5 rounded-md text-xs font-semibold border border-gray-700 z-10">
-            0 Unsorted
+            {nodes.length} Unsorted
           </div>
 
           {/* Canvas Fläche */}
-          <div className="w-full h-full">
-            {/* später: Nodes / Canvas */}
+          <div className="w-full h-full relative">
+            {/* Hier mappen wir über das Array und rendern für jeden Eintrag eine get_node_Text Komponente */}
+            {nodes.map((nodeId) => (
+              <Get_node_Text key={nodeId} />
+            ))}
           </div>
 
         </main>
@@ -115,16 +131,20 @@ export default function GetNodeBoard() {
   );
 }
 
+// onClick Property zur Komponente hinzugefügt
 const SidebarIcon = ({
   icon,
   label,
   active = false,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
+  onClick?: () => void;
 }) => (
   <div
+    onClick={onClick}
     className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 ${
       active ? "text-blue-400" : "text-gray-400 hover:text-white"
     }`}
