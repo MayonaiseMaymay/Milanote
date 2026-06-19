@@ -1,14 +1,31 @@
 "use client";
 
-import React from 'react';
-import { 
-  Home, Search, Bell, Settings, Undo, Redo, Smartphone, 
-  HelpCircle, LayoutGrid, Type, Image as ImageIcon, Link, 
-  CheckSquare, PenTool, Trash, Share, Download, 
-  Pen
-} from 'lucide-react';
+import { useState } from "react";
+import React from "react";
+import ToDoList from "@/components/ui/to_do_list";
+import {
+  Home,
+  Search,
+  Bell,
+  Settings,
+  Undo,
+  Redo,
+  Smartphone,
+  HelpCircle,
+  LayoutGrid,
+  Type,
+  Image as ImageIcon,
+  Link,
+  CheckSquare,
+  PenTool,
+  Trash,
+  Share,
+  Download,
+  Pen,
+} from "lucide-react";
 
 export default function get_node_Board() {
+  const [showTodo, setShowTodo] = useState(false);
   return (
     <div className="flex h-screen bg-[#222222] text-gray-200 font-sans overflow-hidden">
       {/* SIDEBAR */}
@@ -16,12 +33,20 @@ export default function get_node_Board() {
         <div className="space-y-6 flex-1 w-full">
           <SidebarIcon icon={<Type size={20} />} label="Note" />
           <SidebarIcon icon={<Link size={20} />} label="Link" />
-          <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
+          <SidebarIcon
+            icon={<CheckSquare size={20} />}
+            label="To-do"
+            onClick={() => setShowTodo(!showTodo)}
+            active={showTodo}
+          />
           <SidebarIcon icon={<PenTool size={20} />} label="Line" active />
           <SidebarIcon icon={<LayoutGrid size={20} />} label="Board" />
           <div className="w-8 h-px bg-gray-700 mx-auto my-2"></div>
           <SidebarIcon icon={<ImageIcon size={20} />} label="Add image" />
-          <SidebarIcon icon={<Download size={20} className="rotate-180" />} label="Upload" />
+          <SidebarIcon
+            icon={<Download size={20} className="rotate-180" />}
+            label="Upload"
+          />
           <SidebarIcon icon={<Pen size={20} />} label="Draw" />
         </div>
         <div className="w-full">
@@ -46,24 +71,32 @@ export default function get_node_Board() {
           </div>
 
           <div className="absolute left-1/2 transform -translate-x-1/2">
-            <h1 className="text-xl font-serif font-bold text-white tracking-wide">Game project</h1>
+            <h1 className="text-xl font-serif font-bold text-white tracking-wide">
+              Game project
+            </h1>
           </div>
 
           <div className="flex items-center space-x-4 text-gray-400">
             <div className="flex space-x-3">
               <Undo size={18} className="cursor-pointer hover:text-white" />
               <Redo size={18} className="cursor-pointer hover:text-white" />
-              <Smartphone size={18} className="cursor-pointer hover:text-white" />
-              <HelpCircle size={18} className="cursor-pointer hover:text-white" />
+              <Smartphone
+                size={18}
+                className="cursor-pointer hover:text-white"
+              />
+              <HelpCircle
+                size={18}
+                className="cursor-pointer hover:text-white"
+              />
               <Search size={18} className="cursor-pointer hover:text-white" />
               <Bell size={18} className="cursor-pointer hover:text-white" />
               <Settings size={18} className="cursor-pointer hover:text-white" />
             </div>
-            
+
             <div className="flex -space-x-2">
-               <div className="w-6 h-6 rounded-full bg-purple-500 border border-[#1a1a1a] z-30"></div>
-               <div className="w-6 h-6 rounded-full bg-blue-500 border border-[#1a1a1a] z-20"></div>
-               <div className="w-6 h-6 rounded-full bg-green-500 border border-[#1a1a1a] z-10"></div>
+              <div className="w-6 h-6 rounded-full bg-purple-500 border border-[#1a1a1a] z-30"></div>
+              <div className="w-6 h-6 rounded-full bg-blue-500 border border-[#1a1a1a] z-20"></div>
+              <div className="w-6 h-6 rounded-full bg-green-500 border border-[#1a1a1a] z-10"></div>
             </div>
 
             <div className="flex space-x-3 text-sm">
@@ -81,7 +114,8 @@ export default function get_node_Board() {
           </div>
 
           <div className="relative w-full h-full">
-            {/* Das Board ist jetzt komplett leer und bereit für interaktive Elemente */}
+            {/* rendering der To_do_list*/}
+            <ToDoList />
           </div>
         </main>
       </div>
@@ -90,9 +124,24 @@ export default function get_node_Board() {
 }
 
 // Hilfskomponente für die Sidebar
-const SidebarIcon = ({ icon, label, active = false }: { icon: React.ReactNode, label: string, active?: boolean }) => (
-  <div className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 ${active ? 'text-blue-400' : 'text-gray-400 hover:text-white'}`}>
-    <div className={`p-2 rounded-lg ${active ? 'bg-[#2a2a2a]' : 'group-hover:bg-[#2a2a2a]'}`}>
+const SidebarIcon = ({
+  icon,
+  label,
+  active = false,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}) => (
+  <div
+    onClick={onClick}
+    className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 ${active ? "text-blue-400" : "text-gray-400 hover:text-white"}`}
+  >
+    <div
+      className={`p-2 rounded-lg ${active ? "bg-[#2a2a2a]" : "group-hover:bg-[#2a2a2a]"}`}
+    >
       {icon}
     </div>
     <span className="text-[10px] mt-1 scale-90 opacity-80">{label}</span>
