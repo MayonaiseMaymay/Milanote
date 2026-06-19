@@ -8,7 +8,7 @@ interface GetNodeTextProps {
   onDelete: () => void;
 }
 
-export function get_node_Text({ initialX, initialY, onDelete }: GetNodeTextProps) {
+export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeTextProps) {
   // Die Position wird jetzt über Props initialisiert (wichtig fürs Droppen!)
   const [position, setPosition] = useState({ x: initialX, y: initialY });
   const [size, setSize] = useState({ width: 250, height: 120 });

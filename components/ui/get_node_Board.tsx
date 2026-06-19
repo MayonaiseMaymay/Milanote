@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { get_node_Text as Get_node_Text } from "./get_node_Text";
+import Get_node_Text from "./get_node_Text";
 
 import {
   Search,
