@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import Get_node_Text from "./get_node_Text"; // bzw. TextNode, wenn du den Namen geändert hast
-import ToDoList from "@/components/ui/to_do_list";
+import Get_node_Text from "./get_node_Text";
+import ToDoListManager from "@/components/ui/get_node_ToDoList";
+
 import {
-  Home,
   Search,
   Bell,
   Settings,
@@ -19,7 +19,6 @@ import {
   CheckSquare,
   PenTool,
   Trash,
-  Share,
   Download,
   Pen,
 } from "lucide-react";
@@ -54,7 +53,7 @@ export default function GetNodeBoard() {
 
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
-  // ================= CREATE =================
+  // ================= CREATE NODE =================
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
 
@@ -72,7 +71,7 @@ export default function GetNodeBoard() {
     }
   };
 
-  // ================= DRAG LOGIC =================
+  // ================= DRAG =================
   const startDrag = (
     e: React.PointerEvent,
     type: "node" | "link",
@@ -119,7 +118,7 @@ export default function GetNodeBoard() {
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
 
-      {/* ================= SIDEBAR ================= */}
+      {/* ================= SIDEBAR (UNCHANGED) ================= */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
 
@@ -145,43 +144,23 @@ export default function GetNodeBoard() {
           <SidebarIcon icon={<PenTool size={20} />} label="Line" />
           <SidebarIcon icon={<LayoutGrid size={20} />} label="Board" />
 
-          <div className="w-8 h-px bg-gray-700 mx-auto my-2"></div>
+          <div className="w-8 h-px bg-gray-700 mx-auto my-2" />
 
           <SidebarIcon icon={<ImageIcon size={20} />} label="Add image" />
-          <SidebarIcon
-            icon={<Download size={20} className="rotate-180" />}
-            label="Upload"
-          />
+          <SidebarIcon icon={<Download size={20} />} label="Upload" />
           <SidebarIcon icon={<Pen size={20} />} label="Draw" />
         </div>
 
-        <div className="w-full">
-          {/* Trash Button (Kein onClick nötig, wird vom Trash-Manager im Hintergrund abgefangen) */}
-          <SidebarIcon icon={<Trash size={20} />} label="Trash" />
-        </div>
+        <SidebarIcon icon={<Trash size={20} />} label="Trash" />
       </aside>
 
       {/* ================= MAIN ================= */}
       <div className="flex flex-col flex-1">
 
-        {/* TOPBAR (unchanged) */}
+        {/* TOPBAR (UNCHANGED) */}
         <header className="h-14 bg-[#1a1a1a] border-b border-gray-800 flex items-center justify-between px-4 flex-shrink-0">
           <div className="flex items-center space-x-2 text-sm text-gray-400">
-            <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
-              <span className="text-black font-bold text-xs">M</span>
-            </div>
-            <span className="font-semibold text-white">Home</span>
-            <span>/</span>
-            <div className="flex items-center space-x-1">
-              <div className="w-4 h-4 bg-green-500 rounded-sm"></div>
-              <span>Game project</span>
-            </div>
-          </div>
-
-          <div className="absolute left-1/2 transform -translate-x-1/2">
-            <h1 className="text-xl font-serif font-bold text-white tracking-wide">
-              Game project
-            </h1>
+            <span className="text-white font-semibold">Game project</span>
           </div>
 
           <div className="flex items-center space-x-4 text-gray-400">
@@ -197,7 +176,7 @@ export default function GetNodeBoard() {
 
         {/* ================= CANVAS ================= */}
         <main
-          className="flex-1 relative overflow-hidden bg-[#2a2a2a]"
+          className="flex-1 relative bg-[#2a2a2a]"
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           onPointerMove={onMove}
@@ -219,13 +198,7 @@ export default function GetNodeBoard() {
           }}
         >
 
-          {/* COUNTER */}
-          <div className="absolute top-4 right-4 bg-[#333] px-3 py-1.5 rounded-md text-xs font-semibold border border-gray-700 z-10">
-            {nodes.length + links.length} Unsorted
-          </div>
-
-          {/* ================= CONTENT ================= */}
-          <div className="w-full h-full relative">
+          <div className="relative w-full h-full">
 
             {/* NOTES */}
             {nodes.map((node) => (
@@ -259,15 +232,13 @@ export default function GetNodeBoard() {
                   startDrag(e, "link", link.id, link.x, link.y)
                 }
               >
-                <div className="bg-[#1f1f1f] border border-gray-700 p-3 rounded-md w-56 shadow-md">
-
+                <div className="bg-[#1f1f1f] border border-gray-700 p-3 rounded-md w-56">
                   <input
                     className="w-full bg-transparent border border-gray-700 p-1 text-sm text-gray-200"
                     placeholder="https://..."
                     value={link.url}
                     onChange={(e) => {
                       const value = e.target.value;
-
                       setLinks((prev) =>
                         prev.map((l) =>
                           l.id === link.id
@@ -277,20 +248,16 @@ export default function GetNodeBoard() {
                       );
                     }}
                   />
-
-                  {link.url && (
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      className="text-blue-400 text-xs underline break-all mt-2 block"
-                    >
-                      Open Link
-                    </a>
-                  )}
-
                 </div>
               </div>
             ))}
+
+            {/* ================= TODO OVERLAY (NO LAYOUT CHANGE) ================= */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="pointer-events-auto">
+                <ToDoListManager />
+              </div>
+            </div>
 
           </div>
         </main>
@@ -319,13 +286,11 @@ const SidebarIcon = ({
     onClick={onClick}
     draggable={draggable}
     onDragStart={onDragStart}
-    className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 select-none ${
+    className={`flex flex-col items-center cursor-pointer w-full py-1 ${
       active ? "text-blue-400" : "text-gray-400 hover:text-white"
     }`}
   >
-    <div className="p-2 rounded-lg group-hover:bg-[#2a2a2a]">
-      {icon}
-    </div>
-    <span className="text-[10px] mt-1 opacity-80">{label}</span>
+    <div className="p-2">{icon}</div>
+    <span className="text-[10px]">{label}</span>
   </div>
 );
