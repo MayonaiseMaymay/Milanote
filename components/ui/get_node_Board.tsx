@@ -22,14 +22,42 @@ import {
   Pen,
 } from "lucide-react";
 
-export default function GetNodeBoard() {
-  // State für unsere Nodes. Wir starten mit einem leeren Array.
-  const [nodes, setNodes] = useState<number[]>([]);
+// Die ID ist jetzt ein string statt einer number
+interface NodeItem {
+  id: string;
+  x: number;
+  y: number;
+}
 
-  // Funktion, um eine neue Node zum Board hinzuzufügen
-  const addTextNode = () => {
-    // Wir nutzen Date.now() als simple, einzigartige ID für den Key
-    setNodes([...nodes, Date.now()]);
+export default function GetNodeBoard() {
+  const [nodes, setNodes] = useState<NodeItem[]>([]);
+
+  const addTextNodeClick = () => {
+    // Hier nutzen wir jetzt crypto.randomUUID()
+    setNodes([...nodes, { id: crypto.randomUUID(), x: 50, y: 50 }]);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const nodeType = e.dataTransfer.getData("node-type");
+    
+    if (nodeType === "Note") {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Und auch hier beim Drag & Drop crypto.randomUUID() verwenden
+      setNodes([...nodes, { id: crypto.randomUUID(), x, y }]);
+    }
+  };
+
+  // Der Parameter id ist jetzt ein string
+  const handleDeleteNode = (id: string) => {
+    setNodes(nodes.filter((node) => node.id !== id));
   };
 
   return (
@@ -38,8 +66,15 @@ export default function GetNodeBoard() {
       {/* SIDEBAR */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
-          {/* Hier rufen wir addTextNode auf, wenn das Icon geklickt wird */}
-          <SidebarIcon icon={<Type size={20} />} label="Note" onClick={addTextNode} />
+          <SidebarIcon 
+            icon={<Type size={20} />} 
+            label="Note" 
+            onClick={addTextNodeClick}
+            draggable={true}
+            onDragStart={(e) => {
+              e.dataTransfer.setData("node-type", "Note");
+            }}
+          />
           
           <SidebarIcon icon={<Link size={20} />} label="Link" />
           <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
@@ -61,8 +96,6 @@ export default function GetNodeBoard() {
 
         {/* TOPBAR */}
         <header className="h-14 bg-[#1a1a1a] border-b border-gray-800 flex items-center justify-between px-4 flex-shrink-0">
-          
-          {/* LEFT */}
           <div className="flex items-center space-x-2 text-sm text-gray-400">
             <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
               <span className="text-black font-bold text-xs">M</span>
@@ -75,14 +108,12 @@ export default function GetNodeBoard() {
             </div>
           </div>
 
-          {/* CENTER TITLE */}
           <div className="absolute left-1/2 -translate-x-1/2">
             <h1 className="text-xl font-serif font-bold text-white">
               Game project
             </h1>
           </div>
 
-          {/* RIGHT */}
           <div className="flex items-center space-x-4 text-gray-400">
             <div className="flex space-x-3">
               <Undo size={18} className="cursor-pointer hover:text-white" />
@@ -108,8 +139,12 @@ export default function GetNodeBoard() {
           </div>
         </header>
 
-        {/* 🔥 CANVAS (FIXED) */}
-        <main className="flex-1 relative overflow-hidden bg-[#2a2a2a]">
+        {/* 🔥 CANVAS */}
+        <main 
+          className="flex-1 relative overflow-hidden bg-[#2a2a2a]"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
 
           {/* Badge */}
           <div className="absolute top-4 right-4 bg-[#333] px-3 py-1.5 rounded-md text-xs font-semibold border border-gray-700 z-10">
@@ -118,9 +153,13 @@ export default function GetNodeBoard() {
 
           {/* Canvas Fläche */}
           <div className="w-full h-full relative">
-            {/* Hier mappen wir über das Array und rendern für jeden Eintrag eine get_node_Text Komponente */}
-            {nodes.map((nodeId) => (
-              <Get_node_Text key={nodeId} />
+            {nodes.map((node) => (
+              <Get_node_Text 
+                key={node.id} 
+                initialX={node.x} 
+                initialY={node.y} 
+                onDelete={() => handleDeleteNode(node.id)}
+              />
             ))}
           </div>
 
@@ -131,21 +170,26 @@ export default function GetNodeBoard() {
   );
 }
 
-// onClick Property zur Komponente hinzugefügt
 const SidebarIcon = ({
   icon,
   label,
   active = false,
   onClick,
+  draggable,
+  onDragStart,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
   onClick?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
 }) => (
   <div
     onClick={onClick}
-    className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 ${
+    draggable={draggable}
+    onDragStart={onDragStart}
+    className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 select-none ${
       active ? "text-blue-400" : "text-gray-400 hover:text-white"
     }`}
   >

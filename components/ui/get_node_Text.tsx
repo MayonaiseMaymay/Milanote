@@ -2,33 +2,41 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-export function get_node_Text() {
-  // States für Position und Größe
-  const [position, setPosition] = useState({ x: 50, y: 50 });
+interface GetNodeTextProps {
+  initialX: number;
+  initialY: number;
+  onDelete: () => void;
+}
+
+export function get_node_Text({ initialX, initialY, onDelete }: GetNodeTextProps) {
+  // Die Position wird jetzt über Props initialisiert (wichtig fürs Droppen!)
+  const [position, setPosition] = useState({ x: initialX, y: initialY });
   const [size, setSize] = useState({ width: 250, height: 120 });
   
-  // Modus-States
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
   const [text, setText] = useState("");
 
-  // Refs zum Speichern der Start-Koordinaten während des Ziehens/Vergrößerns
   const dragRef = useRef<{ startX: number; startY: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Automatischer Fokus beim Doppelklick
   useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.focus();
     }
   }, [isEditing]);
 
-  // --- 1. DRAG LOGIK (Bewegen) ---
+  // --- DRAG LOGIK ---
   const handleDragPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isEditing) return;
+    
+    // Setzt den Fokus auf das umschließende Div, damit Key-Events registriert werden
+    containerRef.current?.focus();
+
     setIsDragging(true);
     dragRef.current = {
       startX: e.clientX - position.x,
@@ -52,9 +60,9 @@ export function get_node_Text() {
     e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
-  // --- 2. RESIZE LOGIK (Größe anpassen) ---
+  // --- RESIZE LOGIK ---
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.stopPropagation(); // WICHTIG: Verhindert, dass das normale Dragging ausgelöst wird!
+    e.stopPropagation();
     setIsResizing(true);
     resizeRef.current = {
       startX: e.clientX,
@@ -67,8 +75,6 @@ export function get_node_Text() {
 
   const handleResizePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isResizing || !resizeRef.current) return;
-    
-    // Berechnet die neue Breite/Höhe und verhindert, dass es zu klein wird
     setSize({
       width: Math.max(150, resizeRef.current.startW + (e.clientX - resizeRef.current.startX)),
       height: Math.max(60, resizeRef.current.startH + (e.clientY - resizeRef.current.startY)),
@@ -82,10 +88,22 @@ export function get_node_Text() {
     e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
+  // --- TASTATUR LOGIK ---
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Nur löschen, wenn wir NICHT aktiv im Textfeld tippen
+    if ((e.key === 'Backspace' || e.key === 'Delete') && !isEditing) {
+      onDelete();
+    }
+  };
+
   return (
     <div
-      className={`absolute p-4 bg-[#333333] border border-[#444444] rounded shadow-lg flex flex-col transition-colors ${
-        !isEditing ? (isDragging ? 'cursor-grabbing' : 'cursor-grab hover:border-gray-500') : 'cursor-default border-blue-500'
+      ref={containerRef}
+      tabIndex={0} // Macht das Div fokussierbar für KeyDown-Events
+      className={`absolute p-4 bg-[#333333] border rounded shadow-lg flex flex-col transition-colors outline-none focus:border-blue-500 ${
+        !isEditing 
+          ? (isDragging ? 'cursor-grabbing border-gray-500' : 'cursor-grab border-[#444444] hover:border-gray-500') 
+          : 'cursor-default border-blue-500'
       }`}
       style={{
         left: position.x,
@@ -97,6 +115,7 @@ export function get_node_Text() {
       onPointerMove={handleDragPointerMove}
       onPointerUp={handleDragPointerUp}
       onDoubleClick={() => setIsEditing(true)}
+      onKeyDown={handleKeyDown}
     >
       <textarea
         ref={textareaRef}
@@ -110,14 +129,12 @@ export function get_node_Text() {
         readOnly={!isEditing}
       />
 
-      {/* CUSTOM RESIZE HANDLE */}
       <div
         className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-1 opacity-40 hover:opacity-100"
         onPointerDown={handleResizePointerDown}
         onPointerMove={handleResizePointerMove}
         onPointerUp={handleResizePointerUp}
       >
-        {/* Kleines visuelles Dreieck für die Ecke */}
         <div className="w-2.5 h-2.5 border-b-2 border-r-2 border-gray-400 rounded-sm" />
       </div>
     </div>
