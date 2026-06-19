@@ -24,64 +24,129 @@ import {
   Pen,
 } from "lucide-react";
 
+// ================= TYPES =================
+type Tool = "note" | "link" | null;
+
 interface NodeItem {
   id: string;
   x: number;
   y: number;
 }
 
+interface LinkItem {
+  id: string;
+  x: number;
+  y: number;
+  url: string;
+}
+
+// ================= MAIN =================
 export default function GetNodeBoard() {
+  const [tool, setTool] = useState<Tool>(null);
+
   const [nodes, setNodes] = useState<NodeItem[]>([]);
+  const [links, setLinks] = useState<LinkItem[]>([]);
 
-  // Logik für das Text-Node (Note)
-  const addTextNodeClick = () => {
-    setNodes([...nodes, { id: crypto.randomUUID(), x: 50, y: 50 }]);
-  };
+  const [dragging, setDragging] = useState<{
+    type: "node" | "link";
+    id: string;
+  } | null>(null);
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
 
+  // ================= CREATE =================
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
     const nodeType = e.dataTransfer.getData("node-type");
 
-    if (nodeType === "Note") {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      setNodes([...nodes, { id: crypto.randomUUID(), x, y }]);
+    if (nodeType === "Note" || tool === "note") {
+      setNodes((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), x, y },
+      ]);
     }
   };
 
-  const handleDeleteNode = (id: string) => {
-    setNodes(nodes.filter((node) => node.id !== id));
+  // ================= DRAG LOGIC =================
+  const startDrag = (
+    e: React.PointerEvent,
+    type: "node" | "link",
+    id: string,
+    x: number,
+    y: number
+  ) => {
+    setDragging({ type, id });
+
+    setOffset({
+      x: e.clientX - x,
+      y: e.clientY - y,
+    });
   };
 
+  const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    const x = e.clientX - rect.left - offset.x;
+    const y = e.clientY - rect.top - offset.y;
+
+    if (dragging.type === "node") {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === dragging.id ? { ...n, x, y } : n
+        )
+      );
+    }
+
+    if (dragging.type === "link") {
+      setLinks((prev) =>
+        prev.map((l) =>
+          l.id === dragging.id ? { ...l, x, y } : l
+        )
+      );
+    }
+  };
+
+  const stopDrag = () => setDragging(null);
+
+  // ================= UI =================
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
-      {/* SIDEBAR */}
+
+      {/* ================= SIDEBAR ================= */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
-          {/* Note Button (Nutzt normales onClick und Drag) */}
+
           <SidebarIcon
             icon={<Type size={20} />}
             label="Note"
-            onClick={addTextNodeClick}
-            draggable={true}
-            onDragStart={(e) => {
-              e.dataTransfer.setData("node-type", "Note");
-            }}
+            active={tool === "note"}
+            onClick={() => setTool("note")}
+            draggable
+            onDragStart={(e) =>
+              e.dataTransfer.setData("node-type", "Note")
+            }
           />
 
-          <SidebarIcon icon={<Link size={20} />} label="Link" />
+          <SidebarIcon
+            icon={<Link size={20} />}
+            label="Link"
+            active={tool === "link"}
+            onClick={() => setTool("link")}
+          />
 
-          {/* To-do Button (Kein onClick nötig, wird vom Manager im Hintergrund abgefangen) */}
           <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
-
-          <SidebarIcon icon={<PenTool size={20} />} label="Line" active />
+          <SidebarIcon icon={<PenTool size={20} />} label="Line" />
           <SidebarIcon icon={<LayoutGrid size={20} />} label="Board" />
+
           <div className="w-8 h-px bg-gray-700 mx-auto my-2"></div>
+
           <SidebarIcon icon={<ImageIcon size={20} />} label="Add image" />
           <SidebarIcon
             icon={<Download size={20} className="rotate-180" />}
@@ -96,9 +161,10 @@ export default function GetNodeBoard() {
         </div>
       </aside>
 
-      {/* MAIN */}
+      {/* ================= MAIN ================= */}
       <div className="flex flex-col flex-1">
-        {/* TOPBAR */}
+
+        {/* TOPBAR (unchanged) */}
         <header className="h-14 bg-[#1a1a1a] border-b border-gray-800 flex items-center justify-between px-4 flex-shrink-0">
           <div className="flex items-center space-x-2 text-sm text-gray-400">
             <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
@@ -119,60 +185,113 @@ export default function GetNodeBoard() {
           </div>
 
           <div className="flex items-center space-x-4 text-gray-400">
-            <div className="flex space-x-3">
-              <Undo size={18} className="cursor-pointer hover:text-white" />
-              <Redo size={18} className="cursor-pointer hover:text-white" />
-              <Smartphone
-                size={18}
-                className="cursor-pointer hover:text-white"
-              />
-              <HelpCircle
-                size={18}
-                className="cursor-pointer hover:text-white"
-              />
-              <Search size={18} className="cursor-pointer hover:text-white" />
-              <Bell size={18} className="cursor-pointer hover:text-white" />
-              <Settings size={18} className="cursor-pointer hover:text-white" />
-            </div>
-
-            <div className="flex -space-x-2">
-              <div className="w-6 h-6 rounded-full bg-purple-500 border border-[#1a1a1a]" />
-              <div className="w-6 h-6 rounded-full bg-blue-500 border border-[#1a1a1a]" />
-              <div className="w-6 h-6 rounded-full bg-green-500 border border-[#1a1a1a]" />
-            </div>
-
-            <div className="flex space-x-3 text-sm">
-              <button className="hover:text-white">Share</button>
-              <button className="hover:text-white">Export ▾</button>
-              <button className="hover:text-white">80% ▾</button>
-            </div>
+            <Undo size={18} />
+            <Redo size={18} />
+            <Smartphone size={18} />
+            <HelpCircle size={18} />
+            <Search size={18} />
+            <Bell size={18} />
+            <Settings size={18} />
           </div>
         </header>
 
-        {/* 🔥 CANVAS */}
+        {/* ================= CANVAS ================= */}
         <main
           className="flex-1 relative overflow-hidden bg-[#2a2a2a]"
-          onDragOver={handleDragOver}
+          onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
+          onPointerMove={onMove}
+          onPointerUp={stopDrag}
+          onClick={(e) => {
+            if (tool !== "link") return;
+
+            const rect = e.currentTarget.getBoundingClientRect();
+
+            setLinks((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                url: "",
+              },
+            ]);
+          }}
         >
-          {/* Badge */}
+
+          {/* COUNTER */}
           <div className="absolute top-4 right-4 bg-[#333] px-3 py-1.5 rounded-md text-xs font-semibold border border-gray-700 z-10">
-            {nodes.length} Unsorted
+            {nodes.length + links.length} Unsorted
           </div>
 
-          <div className="relative w-full h-full">
-            {/* Deine Text-Nodes rendern */}
+          {/* ================= CONTENT ================= */}
+          <div className="w-full h-full relative">
+
+            {/* NOTES */}
             {nodes.map((node) => (
-              <Get_node_Text
+              <div
                 key={node.id}
-                initialX={node.x}
-                initialY={node.y}
-                onDelete={() => handleDeleteNode(node.id)}
-              />
+                className="absolute"
+                style={{ left: node.x, top: node.y }}
+                onPointerDown={(e) =>
+                  startDrag(e, "node", node.id, node.x, node.y)
+                }
+              >
+                <Get_node_Text
+                  initialX={0}
+                  initialY={0}
+                  onDelete={() =>
+                    setNodes((prev) =>
+                      prev.filter((n) => n.id !== node.id)
+                    )
+                  }
+                />
+              </div>
             ))}
 
-            {/* Rendering des To-do und Trash Managers */}
-            <ToDoList />
+            {/* LINKS */}
+            {links.map((link) => (
+              <div
+                key={link.id}
+                className="absolute"
+                style={{ left: link.x, top: link.y }}
+                onPointerDown={(e) =>
+                  startDrag(e, "link", link.id, link.x, link.y)
+                }
+              >
+                <div className="bg-[#1f1f1f] border border-gray-700 p-3 rounded-md w-56 shadow-md">
+
+                  <input
+                    className="w-full bg-transparent border border-gray-700 p-1 text-sm text-gray-200"
+                    placeholder="https://..."
+                    value={link.url}
+                    onChange={(e) => {
+                      const value = e.target.value;
+
+                      setLinks((prev) =>
+                        prev.map((l) =>
+                          l.id === link.id
+                            ? { ...l, url: value }
+                            : l
+                        )
+                      );
+                    }}
+                  />
+
+                  {link.url && (
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      className="text-blue-400 text-xs underline break-all mt-2 block"
+                    >
+                      Open Link
+                    </a>
+                  )}
+
+                </div>
+              </div>
+            ))}
+
           </div>
         </main>
       </div>
@@ -180,7 +299,7 @@ export default function GetNodeBoard() {
   );
 }
 
-// Aufgeräumte Hilfskomponente
+// ================= SIDEBAR ICON =================
 const SidebarIcon = ({
   icon,
   label,
@@ -204,11 +323,7 @@ const SidebarIcon = ({
       active ? "text-blue-400" : "text-gray-400 hover:text-white"
     }`}
   >
-    <div
-      className={`p-2 rounded-lg transition-colors duration-150 ${
-        active ? "bg-[#2a2a2a]" : "group-hover:bg-[#2a2a2a]"
-      }`}
-    >
+    <div className="p-2 rounded-lg group-hover:bg-[#2a2a2a]">
       {icon}
     </div>
     <span className="text-[10px] mt-1 opacity-80">{label}</span>
