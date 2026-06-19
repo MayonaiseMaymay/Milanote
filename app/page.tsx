@@ -2,8 +2,8 @@ import GetNodeBoard from "@/components/ui/get_node_Board";
 
 export default function Home() {
   return (
-    <main>
+    <div className="w-screen h-screen overflow-hidden">
       <GetNodeBoard />
-    </main>
+    </div>
   );
 }
