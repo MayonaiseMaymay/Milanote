@@ -38,14 +38,21 @@ interface LinkItem {
   url: string;
 }
 
-// ================= MAIN COMPONENT =================
+// ================= MAIN =================
 export default function GetNodeBoard() {
   const [tool, setTool] = useState<Tool>(null);
 
   const [nodes, setNodes] = useState<NodeItem[]>([]);
   const [links, setLinks] = useState<LinkItem[]>([]);
 
-  // ================= DROP HANDLER =================
+  const [dragging, setDragging] = useState<{
+    type: "node" | "link";
+    id: string;
+  } | null>(null);
+
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  // ================= CREATE =================
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
 
@@ -55,23 +62,58 @@ export default function GetNodeBoard() {
 
     const nodeType = e.dataTransfer.getData("node-type");
 
-    // NOTE via drag & drop
     if (nodeType === "Note" || tool === "note") {
       setNodes((prev) => [
         ...prev,
         { id: crypto.randomUUID(), x, y },
       ]);
     }
+  };
 
-    // LINK via drop (optional fallback)
-    if (tool === "link") {
-      setLinks((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), x, y, url: "" },
-      ]);
+  // ================= DRAG LOGIC =================
+  const startDrag = (
+    e: React.PointerEvent,
+    type: "node" | "link",
+    id: string,
+    x: number,
+    y: number
+  ) => {
+    setDragging({ type, id });
+
+    setOffset({
+      x: e.clientX - x,
+      y: e.clientY - y,
+    });
+  };
+
+  const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    const x = e.clientX - rect.left - offset.x;
+    const y = e.clientY - rect.top - offset.y;
+
+    if (dragging.type === "node") {
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === dragging.id ? { ...n, x, y } : n
+        )
+      );
+    }
+
+    if (dragging.type === "link") {
+      setLinks((prev) =>
+        prev.map((l) =>
+          l.id === dragging.id ? { ...l, x, y } : l
+        )
+      );
     }
   };
 
+  const stopDrag = () => setDragging(null);
+
+  // ================= UI =================
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
 
@@ -116,19 +158,27 @@ export default function GetNodeBoard() {
       {/* ================= MAIN ================= */}
       <div className="flex flex-col flex-1">
 
-        {/* TOPBAR */}
-        <header className="h-14 bg-[#1a1a1a] border-b border-gray-800 flex items-center justify-between px-4">
-          <div className="text-sm text-gray-400 flex gap-2">
-            <span className="font-bold text-white">Home</span>
+        {/* TOPBAR (unchanged) */}
+        <header className="h-14 bg-[#1a1a1a] border-b border-gray-800 flex items-center justify-between px-4 flex-shrink-0">
+          <div className="flex items-center space-x-2 text-sm text-gray-400">
+            <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
+              <span className="text-black font-bold text-xs">M</span>
+            </div>
+            <span className="font-semibold text-white">Home</span>
             <span>/</span>
-            <span>Game project</span>
+            <div className="flex items-center space-x-1">
+              <div className="w-4 h-4 bg-green-500 rounded-sm"></div>
+              <span>Game project</span>
+            </div>
           </div>
 
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-white font-bold">
-            Game project
-          </h1>
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <h1 className="text-xl font-serif font-bold text-white">
+              Game project
+            </h1>
+          </div>
 
-          <div className="flex gap-3 text-gray-400">
+          <div className="flex items-center space-x-4 text-gray-400">
             <Undo size={18} />
             <Redo size={18} />
             <Smartphone size={18} />
@@ -144,6 +194,8 @@ export default function GetNodeBoard() {
           className="flex-1 relative overflow-hidden bg-[#2a2a2a]"
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
+          onPointerMove={onMove}
+          onPointerUp={stopDrag}
           onClick={(e) => {
             if (tool !== "link") return;
 
@@ -162,25 +214,33 @@ export default function GetNodeBoard() {
         >
 
           {/* COUNTER */}
-          <div className="absolute top-4 right-4 bg-[#333] px-3 py-1 text-xs rounded-md border border-gray-700 z-10">
-            {nodes.length + links.length} Items
+          <div className="absolute top-4 right-4 bg-[#333] px-3 py-1.5 rounded-md text-xs font-semibold border border-gray-700 z-10">
+            {nodes.length + links.length} Unsorted
           </div>
 
-          {/* CANVAS CONTENT */}
+          {/* ================= CONTENT ================= */}
           <div className="w-full h-full relative">
 
             {/* NOTES */}
             {nodes.map((node) => (
-              <Get_node_Text
+              <div
                 key={node.id}
-                initialX={node.x}
-                initialY={node.y}
-                onDelete={() =>
-                  setNodes((prev) =>
-                    prev.filter((n) => n.id !== node.id)
-                  )
+                className="absolute"
+                style={{ left: node.x, top: node.y }}
+                onPointerDown={(e) =>
+                  startDrag(e, "node", node.id, node.x, node.y)
                 }
-              />
+              >
+                <Get_node_Text
+                  initialX={0}
+                  initialY={0}
+                  onDelete={() =>
+                    setNodes((prev) =>
+                      prev.filter((n) => n.id !== node.id)
+                    )
+                  }
+                />
+              </div>
             ))}
 
             {/* LINKS */}
@@ -189,11 +249,14 @@ export default function GetNodeBoard() {
                 key={link.id}
                 className="absolute"
                 style={{ left: link.x, top: link.y }}
+                onPointerDown={(e) =>
+                  startDrag(e, "link", link.id, link.x, link.y)
+                }
               >
-                <div className="bg-[#1f1f1f] border border-gray-700 p-3 rounded-md w-56">
+                <div className="bg-[#1f1f1f] border border-gray-700 p-3 rounded-md w-56 shadow-md">
 
                   <input
-                    className="w-full bg-transparent border border-gray-700 p-1 text-sm"
+                    className="w-full bg-transparent border border-gray-700 p-1 text-sm text-gray-200"
                     placeholder="https://..."
                     value={link.url}
                     onChange={(e) => {
@@ -213,14 +276,16 @@ export default function GetNodeBoard() {
                     <a
                       href={link.url}
                       target="_blank"
-                      className="text-blue-400 text-xs underline block mt-2"
+                      className="text-blue-400 text-xs underline break-all mt-2 block"
                     >
                       Open Link
                     </a>
                   )}
+
                 </div>
               </div>
             ))}
+
           </div>
         </main>
       </div>
@@ -248,11 +313,11 @@ const SidebarIcon = ({
     onClick={onClick}
     draggable={draggable}
     onDragStart={onDragStart}
-    className={`flex flex-col items-center justify-center cursor-pointer w-full py-1 ${
+    className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 select-none ${
       active ? "text-blue-400" : "text-gray-400 hover:text-white"
     }`}
   >
-    <div className="p-2 rounded-lg hover:bg-[#2a2a2a]">
+    <div className="p-2 rounded-lg group-hover:bg-[#2a2a2a]">
       {icon}
     </div>
     <span className="text-[10px] mt-1 opacity-80">{label}</span>
