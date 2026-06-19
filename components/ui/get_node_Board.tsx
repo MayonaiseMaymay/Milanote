@@ -53,7 +53,7 @@ export default function GetNodeBoard() {
 
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
-  // ================= CREATE NODE =================
+  // ================= DROP =================
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
 
@@ -63,10 +63,22 @@ export default function GetNodeBoard() {
 
     const nodeType = e.dataTransfer.getData("node-type");
 
-    if (nodeType === "Note" || tool === "note") {
+    if (nodeType === "Note") {
       setNodes((prev) => [
         ...prev,
         { id: crypto.randomUUID(), x, y },
+      ]);
+    }
+
+    if (nodeType === "Link") {
+      setLinks((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          x,
+          y,
+          url: "",
+        },
       ]);
     }
   };
@@ -118,7 +130,7 @@ export default function GetNodeBoard() {
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
 
-      {/* ================= SIDEBAR (UNCHANGED) ================= */}
+      {/* ================= SIDEBAR ================= */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
 
@@ -138,6 +150,10 @@ export default function GetNodeBoard() {
             label="Link"
             active={tool === "link"}
             onClick={() => setTool("link")}
+            draggable
+            onDragStart={(e) =>
+              e.dataTransfer.setData("node-type", "Link")
+            }
           />
 
           <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
@@ -157,7 +173,7 @@ export default function GetNodeBoard() {
       {/* ================= MAIN ================= */}
       <div className="flex flex-col flex-1">
 
-        {/* TOPBAR (UNCHANGED) */}
+        {/* TOPBAR */}
         <header className="h-14 bg-[#1a1a1a] border-b border-gray-800 flex items-center justify-between px-4 flex-shrink-0">
           <div className="flex items-center space-x-2 text-sm text-gray-400">
             <span className="text-white font-semibold">Game project</span>
@@ -181,23 +197,7 @@ export default function GetNodeBoard() {
           onDrop={handleDrop}
           onPointerMove={onMove}
           onPointerUp={stopDrag}
-          onClick={(e) => {
-            if (tool !== "link") return;
-
-            const rect = e.currentTarget.getBoundingClientRect();
-
-            setLinks((prev) => [
-              ...prev,
-              {
-                id: crypto.randomUUID(),
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
-                url: "",
-              },
-            ]);
-          }}
         >
-
           <div className="relative w-full h-full">
 
             {/* NOTES */}
@@ -252,7 +252,7 @@ export default function GetNodeBoard() {
               </div>
             ))}
 
-            {/* ================= TODO OVERLAY (NO LAYOUT CHANGE) ================= */}
+            {/* TODO OVERLAY */}
             <div className="absolute inset-0 pointer-events-none">
               <div className="pointer-events-auto">
                 <ToDoListManager />
