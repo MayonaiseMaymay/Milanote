@@ -1,6 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import Get_node_Text from "./get_node_Text";
+
 import {
   Search,
   Bell,
@@ -20,14 +22,60 @@ import {
   Pen,
 } from "lucide-react";
 
+// Die ID ist jetzt ein string statt einer number
+interface NodeItem {
+  id: string;
+  x: number;
+  y: number;
+}
+
 export default function GetNodeBoard() {
+  const [nodes, setNodes] = useState<NodeItem[]>([]);
+
+  const addTextNodeClick = () => {
+    // Hier nutzen wir jetzt crypto.randomUUID()
+    setNodes([...nodes, { id: crypto.randomUUID(), x: 50, y: 50 }]);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const nodeType = e.dataTransfer.getData("node-type");
+    
+    if (nodeType === "Note") {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Und auch hier beim Drag & Drop crypto.randomUUID() verwenden
+      setNodes([...nodes, { id: crypto.randomUUID(), x, y }]);
+    }
+  };
+
+  // Der Parameter id ist jetzt ein string
+  const handleDeleteNode = (id: string) => {
+    setNodes(nodes.filter((node) => node.id !== id));
+  };
+
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
       
       {/* SIDEBAR */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
-          <SidebarIcon icon={<Type size={20} />} label="Note" />
+          <SidebarIcon 
+            icon={<Type size={20} />} 
+            label="Note" 
+            onClick={addTextNodeClick}
+            draggable={true}
+            onDragStart={(e) => {
+              e.dataTransfer.setData("node-type", "Note");
+            }}
+          />
+          
           <SidebarIcon icon={<Link size={20} />} label="Link" />
           <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
           <SidebarIcon icon={<PenTool size={20} />} label="Line" active />
@@ -48,8 +96,6 @@ export default function GetNodeBoard() {
 
         {/* TOPBAR */}
         <header className="h-14 bg-[#1a1a1a] border-b border-gray-800 flex items-center justify-between px-4 flex-shrink-0">
-          
-          {/* LEFT */}
           <div className="flex items-center space-x-2 text-sm text-gray-400">
             <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
               <span className="text-black font-bold text-xs">M</span>
@@ -62,14 +108,12 @@ export default function GetNodeBoard() {
             </div>
           </div>
 
-          {/* CENTER TITLE */}
           <div className="absolute left-1/2 -translate-x-1/2">
             <h1 className="text-xl font-serif font-bold text-white">
               Game project
             </h1>
           </div>
 
-          {/* RIGHT */}
           <div className="flex items-center space-x-4 text-gray-400">
             <div className="flex space-x-3">
               <Undo size={18} className="cursor-pointer hover:text-white" />
@@ -95,17 +139,28 @@ export default function GetNodeBoard() {
           </div>
         </header>
 
-        {/* 🔥 CANVAS (FIXED) */}
-        <main className="flex-1 relative overflow-hidden bg-[#2a2a2a]">
+        {/* 🔥 CANVAS */}
+        <main 
+          className="flex-1 relative overflow-hidden bg-[#2a2a2a]"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
 
           {/* Badge */}
           <div className="absolute top-4 right-4 bg-[#333] px-3 py-1.5 rounded-md text-xs font-semibold border border-gray-700 z-10">
-            0 Unsorted
+            {nodes.length} Unsorted
           </div>
 
           {/* Canvas Fläche */}
-          <div className="w-full h-full">
-            {/* später: Nodes / Canvas */}
+          <div className="w-full h-full relative">
+            {nodes.map((node) => (
+              <Get_node_Text 
+                key={node.id} 
+                initialX={node.x} 
+                initialY={node.y} 
+                onDelete={() => handleDeleteNode(node.id)}
+              />
+            ))}
           </div>
 
         </main>
@@ -119,13 +174,22 @@ const SidebarIcon = ({
   icon,
   label,
   active = false,
+  onClick,
+  draggable,
+  onDragStart,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
+  onClick?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
 }) => (
   <div
-    className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 ${
+    onClick={onClick}
+    draggable={draggable}
+    onDragStart={onDragStart}
+    className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 select-none ${
       active ? "text-blue-400" : "text-gray-400 hover:text-white"
     }`}
   >
