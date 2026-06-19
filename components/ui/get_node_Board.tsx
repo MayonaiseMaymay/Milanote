@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import Get_node_Text from "./get_node_Text";
-
+import Get_node_Text from "./get_node_Text"; // bzw. TextNode, wenn du den Namen geändert hast
+import ToDoList from "@/components/ui/to_do_list";
 import {
+  Home,
   Search,
   Bell,
   Settings,
@@ -18,6 +19,7 @@ import {
   CheckSquare,
   PenTool,
   Trash,
+  Share,
   Download,
   Pen,
 } from "lucide-react";
@@ -146,11 +148,15 @@ export default function GetNodeBoard() {
           <div className="w-8 h-px bg-gray-700 mx-auto my-2"></div>
 
           <SidebarIcon icon={<ImageIcon size={20} />} label="Add image" />
-          <SidebarIcon icon={<Download size={20} className="rotate-180" />} label="Upload" />
+          <SidebarIcon
+            icon={<Download size={20} className="rotate-180" />}
+            label="Upload"
+          />
           <SidebarIcon icon={<Pen size={20} />} label="Draw" />
         </div>
 
         <div className="w-full">
+          {/* Trash Button (Kein onClick nötig, wird vom Trash-Manager im Hintergrund abgefangen) */}
           <SidebarIcon icon={<Trash size={20} />} label="Trash" />
         </div>
       </aside>
@@ -172,8 +178,8 @@ export default function GetNodeBoard() {
             </div>
           </div>
 
-          <div className="absolute left-1/2 -translate-x-1/2">
-            <h1 className="text-xl font-serif font-bold text-white">
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <h1 className="text-xl font-serif font-bold text-white tracking-wide">
               Game project
             </h1>
           </div>
