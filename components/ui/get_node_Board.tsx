@@ -1,9 +1,8 @@
 "use client";
 
-import React from "react";
-import Get_node_Text from "./get_node_Text";
+import React, { useState } from "react";
+import Get_node_Text from "./get_node_Text"; // bzw. TextNode, wenn du den Namen geändert hast
 import ToDoList from "@/components/ui/to_do_list";
-import { useState } from "react";
 import {
   Home,
   Search,
@@ -25,7 +24,6 @@ import {
   Pen,
 } from "lucide-react";
 
-// Die ID ist jetzt ein string statt einer number
 interface NodeItem {
   id: string;
   x: number;
@@ -35,8 +33,8 @@ interface NodeItem {
 export default function GetNodeBoard() {
   const [nodes, setNodes] = useState<NodeItem[]>([]);
 
+  // Logik für das Text-Node (Note)
   const addTextNodeClick = () => {
-    // Hier nutzen wir jetzt crypto.randomUUID()
     setNodes([...nodes, { id: crypto.randomUUID(), x: 50, y: 50 }]);
   };
 
@@ -52,27 +50,24 @@ export default function GetNodeBoard() {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-
-      // Und auch hier beim Drag & Drop crypto.randomUUID() verwenden
       setNodes([...nodes, { id: crypto.randomUUID(), x, y }]);
     }
   };
 
-  // Der Parameter id ist jetzt ein string
   const handleDeleteNode = (id: string) => {
     setNodes(nodes.filter((node) => node.id !== id));
   };
 
-  const [showTodo, setShowTodo] = useState(false);
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
       {/* SIDEBAR */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
+          {/* Note Button (Nutzt normales onClick und Drag) */}
           <SidebarIcon
             icon={<Type size={20} />}
             label="Note"
-            onClickText={addTextNodeClick}
+            onClick={addTextNodeClick}
             draggable={true}
             onDragStart={(e) => {
               e.dataTransfer.setData("node-type", "Note");
@@ -80,12 +75,10 @@ export default function GetNodeBoard() {
           />
 
           <SidebarIcon icon={<Link size={20} />} label="Link" />
-          <SidebarIcon
-            icon={<CheckSquare size={20} />}
-            label="To-do"
-            onClickToDo={() => setShowTodo(!showTodo)}
-            active={showTodo}
-          />
+
+          {/* To-do Button (Kein onClick nötig, wird vom Manager im Hintergrund abgefangen) */}
+          <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
+
           <SidebarIcon icon={<PenTool size={20} />} label="Line" active />
           <SidebarIcon icon={<LayoutGrid size={20} />} label="Board" />
           <div className="w-8 h-px bg-gray-700 mx-auto my-2"></div>
@@ -98,6 +91,7 @@ export default function GetNodeBoard() {
         </div>
 
         <div className="w-full">
+          {/* Trash Button (Kein onClick nötig, wird vom Trash-Manager im Hintergrund abgefangen) */}
           <SidebarIcon icon={<Trash size={20} />} label="Trash" />
         </div>
       </aside>
@@ -167,7 +161,7 @@ export default function GetNodeBoard() {
           </div>
 
           <div className="relative w-full h-full">
-            {/* Canva Fläche */}
+            {/* Deine Text-Nodes rendern */}
             {nodes.map((node) => (
               <Get_node_Text
                 key={node.id}
@@ -176,7 +170,8 @@ export default function GetNodeBoard() {
                 onDelete={() => handleDeleteNode(node.id)}
               />
             ))}
-            {/* rendering der To_do_list*/}
+
+            {/* Rendering des To-do und Trash Managers */}
             <ToDoList />
           </div>
         </main>
@@ -185,24 +180,24 @@ export default function GetNodeBoard() {
   );
 }
 
-// Hilfskomponente für die Sidebar
+// Aufgeräumte Hilfskomponente
 const SidebarIcon = ({
   icon,
   label,
   active = false,
-  onClickText,
+  onClick,
   draggable,
   onDragStart,
-  onClickToDo,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
+  onClick?: () => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
 }) => (
   <div
-    onClick={onClickText}
+    onClick={onClick}
     draggable={draggable}
     onDragStart={onDragStart}
     className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 select-none ${
@@ -210,11 +205,9 @@ const SidebarIcon = ({
     }`}
   >
     <div
-      onClick={onClickToDo}
-      className={`flex flex-col items-center justify-center cursor-pointer group w-full py-1 ${active ? "text-blue-400" : "text-gray-400 hover:text-white"}`}
-    ></div>
-    <div
-      className={`p-2 rounded-lg ${active ? "bg-[#2a2a2a]" : "group-hover:bg-[#2a2a2a]"}`}
+      className={`p-2 rounded-lg transition-colors duration-150 ${
+        active ? "bg-[#2a2a2a]" : "group-hover:bg-[#2a2a2a]"
+      }`}
     >
       {icon}
     </div>
