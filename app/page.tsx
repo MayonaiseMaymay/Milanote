@@ -1,41 +1,6 @@
-import GetNodeBoard from "@/components/ui/get_node_Board";
-import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function Home() {
-  // 1. Erst Board sicherstellen
-  await prisma.board.upsert({
-    where: { id: "board-1" },
-    update: {},
-    create: {
-      id: "board-1",
-      title: "Game project",
-      user: {
-        connectOrCreate: {
-          where: { id: "user-1" },
-          create: { id: "user-1", email: "test@example.com" },
-        },
-      },
-    },
-  });
-
-  // 2. Jetzt erst die Notes für dieses Board holen
-  const dbNotes = await prisma.note.findMany({
-    where: { boardId: "board-1" },
-  });
-
-  // 3. Daten formatieren
-  const initialNodes = dbNotes.map((note: any) => ({
-    id: note.id,
-    x: note.x,
-    y: note.y,
-    content: note.content || "",
-  }));
-
-  return (
-    <div className="w-screen h-screen overflow-hidden">
-      <GetNodeBoard initialNodes={initialNodes} />
-    </div>
-  );
+export default function Home() {
+  // Leite den Nutzer direkt auf das erste Board weiter
+  redirect("/board/board-1");
 }
