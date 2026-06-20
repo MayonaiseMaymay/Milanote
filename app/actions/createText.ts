@@ -1,16 +1,21 @@
 "use server";
 
+import { prisma } from "../../lib/prisma";
 import { CreateTextSchema, type CreateTextInput } from "@/app/schema/text";
-// import { prisma } from "@/lib/prisma"; <-- Das kommentieren wir erstmal aus, bis die DB steht
 
 export async function createText(input: CreateTextInput) {
-  // Validierung zur Laufzeit! Wirft einen Error, falls der Text z.B. zu lang ist
+  // 1. Zod-Validierung zur Laufzeit
   const validated = CreateTextSchema.parse(input);
   
-  console.log("Erfolgreich auf dem Server validiert:", validated);
-
-  // Später kommt hier das rein:
-  // return prisma.textNode.create({ data: validated });
+  // 2. In die Postgres-Datenbank schreiben
+  const newNote = await prisma.note.create({
+    data: {
+      content: validated.content || "", // Falls leer, leeren String speichern
+      x: validated.x,
+      y: validated.y,
+      boardId: validated.boardId,
+    },
+  });
   
-  return { success: true, data: validated };
+  return { success: true, data: newNote };
 }
