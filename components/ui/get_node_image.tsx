@@ -33,7 +33,7 @@ interface ImageInstance {
 // ==========================================
 // 1. DER BILD-MANAGER
 // ==========================================
-export default function ImageNodeManager() {
+export default function Get_node_ImageManager() {
   const [images, setImages] = useState<ImageInstance[]>([]);
   const [isTrashMode, setIsTrashMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -141,7 +141,7 @@ export default function ImageNodeManager() {
         title="Bild hochladen"
       />
       {images.map((img) => (
-        <IndividualImageNode
+        <Get_node_IndividualImage  // <-- Hier großes G
           key={img.id}
           image={img}
           isTrashMode={isTrashMode}
@@ -159,7 +159,7 @@ export default function ImageNodeManager() {
 // ==========================================
 // 2. DAS EINZELNE BILD-NODE
 // ==========================================
-function IndividualImageNode({
+function Get_node_IndividualImage({
   image,
   isTrashMode,
   onDeleteMe,

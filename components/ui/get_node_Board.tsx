@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Get_node_Text from "./get_node_Text";
 import ToDoListManager from "@/components/ui/get_node_ToDoList";
-import ImageNodeManager from "@/components/ui/image_node";
+import ImageNodeManager from "@/components/ui/get_node_image";
 import FileNodeManager from "@/components/ui/file_node";
 import { createText } from "@/app/actions/createText";
 import { deleteText } from "@/app/actions/deleteText"; // <-- NEU
