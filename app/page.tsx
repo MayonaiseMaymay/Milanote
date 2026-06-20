@@ -4,20 +4,37 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // 1. Alle gespeicherten Notes aus der Datenbank holen
-  const dbNotes = await prisma.note.findMany();
+  // 1. Erst Board sicherstellen
+  await prisma.board.upsert({
+    where: { id: "board-1" },
+    update: {},
+    create: {
+      id: "board-1",
+      title: "Game project",
+      user: {
+        connectOrCreate: {
+          where: { id: "user-1" },
+          create: { id: "user-1", email: "test@example.com" },
+        },
+      },
+    },
+  });
 
-  // 2. Daten so formatieren, wie dein Board sie erwartet
-  const initialNodes = dbNotes.map(note => ({
+  // 2. Jetzt erst die Notes für dieses Board holen
+  const dbNotes = await prisma.note.findMany({
+    where: { boardId: "board-1" },
+  });
+
+  // 3. Daten formatieren
+  const initialNodes = dbNotes.map((note: any) => ({
     id: note.id,
     x: note.x,
     y: note.y,
-    content: note.content || "", // <-- JETZT AKTIV: Text aus der DB mitgeben
+    content: note.content || "",
   }));
 
   return (
     <div className="w-screen h-screen overflow-hidden">
-      {/* 3. Start-Daten an das Board übergeben */}
       <GetNodeBoard initialNodes={initialNodes} />
     </div>
   );

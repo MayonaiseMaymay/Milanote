@@ -6,7 +6,7 @@ import ToDoListManager from "@/components/ui/get_node_ToDoList";
 import ImageNodeManager from "@/components/ui/image_node";
 import FileNodeManager from "@/components/ui/file_node";
 import { createText } from "@/app/actions/createText";
-import { deleteText } from "@/app/actions/deleteText";         // <-- NEU
+import { deleteText } from "@/app/actions/deleteText"; // <-- NEU
 import { updatePosition } from "@/app/actions/updatePosition"; // <-- NEU
 
 import {
@@ -35,7 +35,7 @@ interface NodeItem {
   id: string;
   x: number;
   y: number;
-  content: string;
+  content?: string;
 }
 
 interface LinkItem {
@@ -50,7 +50,11 @@ interface GetNodeBoardProps {
 }
 
 // ================= MAIN =================
-export default function GetNodeBoard({ initialNodes = [] }: GetNodeBoardProps) {
+export default function GetNodeBoard({
+  initialNodes = [],
+}: {
+  initialNodes?: NodeItem[];
+}) {
   const [tool, setTool] = useState<Tool>(null);
 
   const [nodes, setNodes] = useState<NodeItem[]>(initialNodes);
@@ -75,14 +79,19 @@ export default function GetNodeBoard({ initialNodes = [] }: GetNodeBoardProps) {
 
     if (nodeType === "Note") {
       const tempId = crypto.randomUUID();
-      
+
       setNodes((prev) => [...prev, { id: tempId, x, y, content: "" }]);
 
-      const result = await createText({ x, y, boardId: "board-1", content: "" });
-      
+      const result = await createText({
+        x,
+        y,
+        boardId: "board-1",
+        content: "",
+      });
+
       if (result && result.success && result.data) {
         setNodes((prev) =>
-          prev.map((n) => (n.id === tempId ? { ...n, id: result.data.id } : n))
+          prev.map((n) => (n.id === tempId ? { ...n, id: result.data.id } : n)),
         );
       }
     }
@@ -229,7 +238,7 @@ export default function GetNodeBoard({ initialNodes = [] }: GetNodeBoardProps) {
               >
                 <Get_node_Text
                   id={node.id}
-                  initialContent={node.content}
+                  initialContent={node.content || ""}
                   onDelete={async () => {
                     // <-- NEU: Lokal entfernen UND aus der Datenbank löschen
                     setNodes((prev) => prev.filter((n) => n.id !== node.id));
