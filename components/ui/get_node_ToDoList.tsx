@@ -11,7 +11,23 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import TrashButton from "./trash_button"; // <--- Importiert den neuen Manager
+import TrashButton from "./trash_button";
+
+// --- 1. ZOD & REACT-HOOK-FORM IMPORTS ---
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+// --- 2. ZOD SCHEMA DEFINIEREN (Aufgabe Schritt 1) ---
+const TodoSchema = z.object({
+  text: z
+    .string()
+    .min(1, "Aufgabe darf nicht leer sein")
+    .max(100, "Maximal 100 Zeichen erlaubt"),
+});
+
+// TypeScript Typ automatisch aus dem Schema ableiten
+type TodoInput = z.infer<typeof TodoSchema>;
 
 interface Todo {
   id: string;
@@ -26,7 +42,7 @@ interface ListInstance {
 }
 
 // ==========================================
-// 1. DER MANAGER FOR DEINE TO-DO LISTEN
+// DER MANAGER FOR DEINE TO-DO LISTEN
 // ==========================================
 export default function ToDoListManager() {
   const [lists, setLists] = useState<ListInstance[]>([]);
@@ -40,7 +56,6 @@ export default function ToDoListManager() {
     isTrashModeRef.current = isTrashMode;
   }, [lists, isTrashMode]);
 
-  // Lauscht auf den Trash-Zustand des zentralen Managers und aufs Erstellen
   useEffect(() => {
     const handleAddList = () => {
       if (isTrashModeRef.current) return;
@@ -65,7 +80,6 @@ export default function ToDoListManager() {
     window.addEventListener("click-todo-sidebar", handleAddList);
     window.addEventListener("milanote-trash-sync", handleTrashSync);
 
-    // Klick-Abfang für den To-do Button deiner Kollegen
     const handleSidebarClicks = (e: MouseEvent) => {
       const aside = document.querySelector("aside");
       if (!aside || !aside.contains(e.target as Node)) return;
@@ -94,7 +108,6 @@ export default function ToDoListManager() {
         .animate-shake { animation: subtleShake 0.2s ease-in-out infinite; }
       `}</style>
 
-      {/* DER ZENTRALE TRASH-MANAGER WIRD HIER REINGELADEN */}
       <TrashButton />
 
       {lists.map((list) => (
@@ -112,7 +125,7 @@ export default function ToDoListManager() {
 }
 
 // ==========================================
-// 2. DIE EINZELNE TO-DO LISTE
+// DIE EINZELNE TO-DO LISTE
 // ==========================================
 function IndividualToDoList({
   list,
@@ -124,7 +137,6 @@ function IndividualToDoList({
   onDeleteMe: () => void;
 }) {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [inputValue, setInputValue] = useState("");
   const [title, setTitle] = useState(list.title);
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -139,6 +151,21 @@ function IndividualToDoList({
     initialX: number;
     initialY: number;
   } | null>(null);
+
+  // --- 3. USE-FORM SETUP (Aufgabe Schritt 3) ---
+  const form = useForm<TodoInput>({
+    resolver: zodResolver(TodoSchema),
+    defaultValues: { text: "" },
+  });
+
+  // --- WIRD AUSGEFÜHRT, WENN DAS FORMULAR GÜLTIG IST ---
+  const onSubmit = (data: TodoInput) => {
+    setTodos([
+      ...todos,
+      { id: crypto.randomUUID(), text: data.text, completed: false },
+    ]);
+    form.reset(); // Leert das Feld nach erfolgreichem Hinzufügen
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isTrashMode) return;
@@ -183,16 +210,11 @@ function IndividualToDoList({
     };
   }, [isDragging]);
 
-  // Wird im Löschmodus ausgeführt
   const handleCardClick = () => {
     if (isTrashMode) {
-      // Sende eine Lösch-Anfrage an das zentrale System in trash_button.tsx
       window.dispatchEvent(
         new CustomEvent("milanote-request-delete", {
-          detail: {
-            title: title || "To-do Liste",
-            onConfirm: onDeleteMe, // Das löscht die Liste aus dem State des Managers
-          },
+          detail: { title: title || "To-do Liste", onConfirm: onDeleteMe },
         }),
       );
     }
@@ -222,6 +244,16 @@ function IndividualToDoList({
       )}
 
       <div className="p-4 flex flex-col gap-1.5">
+        <div className="px-2 pb-2 mb-2 border-b border-gray-700/50 no-drag">
+          <input
+            aria-label="Titel der Liste"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="bg-transparent border-none outline-none text-base font-semibold text-gray-200 w-full"
+            disabled={isTrashMode}
+          />
+        </div>
+
         {todos.map((todo) => (
           <div
             key={todo.id}
@@ -280,31 +312,30 @@ function IndividualToDoList({
           </div>
         ))}
 
-        <div className="flex items-center gap-3 px-2 py-1.5 mt-1 no-drag opacity-70 focus-within:opacity-100 transition-opacity">
-          <Square className="w-4 h-4 text-gray-500 shrink-0" />
-          <input
-            aria-label="Neue Aufgabe"
-            placeholder="Add a task..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && inputValue.trim()) {
-                e.preventDefault();
-                setTodos([
-                  ...todos,
-                  {
-                    id: crypto.randomUUID(),
-                    text: inputValue,
-                    completed: false,
-                  },
-                ]);
-                setInputValue("");
-              }
-            }}
-            className="bg-transparent border-none outline-none text-[15px] text-gray-200 placeholder:text-gray-500 w-full flex-1"
-            disabled={isTrashMode}
-          />
-        </div>
+        {/* --- 4. FORMULAR MIT ZOD VALIDIERUNG --- */}
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-1 px-2 py-1.5 mt-1 no-drag opacity-70 focus-within:opacity-100 transition-opacity"
+        >
+          <div className="flex items-center gap-3">
+            <Square className="w-4 h-4 text-gray-500 shrink-0" />
+            <input
+              {...form.register("text")} // Registriert das Input bei react-hook-form
+              aria-label="Neue Aufgabe"
+              placeholder="Add a task..."
+              className="bg-transparent border-none outline-none text-[15px] text-gray-200 placeholder:text-gray-500 w-full flex-1"
+              disabled={isTrashMode}
+              autoComplete="off"
+            />
+          </div>
+
+          {/* Zeigt Zod Validierungsfehler an */}
+          {form.formState.errors.text && (
+            <span className="text-red-400 text-[11px] ml-7">
+              {form.formState.errors.text.message}
+            </span>
+          )}
+        </form>
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -321,7 +352,7 @@ function IndividualToDoList({
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && editValue.trim().length > 0) {
                   setTodos(
                     todos.map((t) =>
                       t.id === todoToEdit?.id ? { ...t, text: editValue } : t,

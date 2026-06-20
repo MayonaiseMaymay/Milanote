@@ -64,10 +64,7 @@ export default function GetNodeBoard() {
     const nodeType = e.dataTransfer.getData("node-type");
 
     if (nodeType === "Note") {
-      setNodes((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), x, y },
-      ]);
+      setNodes((prev) => [...prev, { id: crypto.randomUUID(), x, y }]);
     }
 
     if (nodeType === "Link") {
@@ -89,7 +86,7 @@ export default function GetNodeBoard() {
     type: "node" | "link",
     id: string,
     x: number,
-    y: number
+    y: number,
   ) => {
     setDragging({ type, id });
 
@@ -109,17 +106,13 @@ export default function GetNodeBoard() {
 
     if (dragging.type === "node") {
       setNodes((prev) =>
-        prev.map((n) =>
-          n.id === dragging.id ? { ...n, x, y } : n
-        )
+        prev.map((n) => (n.id === dragging.id ? { ...n, x, y } : n)),
       );
     }
 
     if (dragging.type === "link") {
       setLinks((prev) =>
-        prev.map((l) =>
-          l.id === dragging.id ? { ...l, x, y } : l
-        )
+        prev.map((l) => (l.id === dragging.id ? { ...l, x, y } : l)),
       );
     }
   };
@@ -129,20 +122,16 @@ export default function GetNodeBoard() {
   // ================= UI =================
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
-
       {/* ================= SIDEBAR ================= */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
-
           <SidebarIcon
             icon={<Type size={20} />}
             label="Note"
             active={tool === "note"}
             onClick={() => setTool("note")}
             draggable
-            onDragStart={(e) =>
-              e.dataTransfer.setData("node-type", "Note")
-            }
+            onDragStart={(e) => e.dataTransfer.setData("node-type", "Note")}
           />
 
           <SidebarIcon
@@ -151,9 +140,7 @@ export default function GetNodeBoard() {
             active={tool === "link"}
             onClick={() => setTool("link")}
             draggable
-            onDragStart={(e) =>
-              e.dataTransfer.setData("node-type", "Link")
-            }
+            onDragStart={(e) => e.dataTransfer.setData("node-type", "Link")}
           />
 
           <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
@@ -172,7 +159,6 @@ export default function GetNodeBoard() {
 
       {/* ================= MAIN ================= */}
       <div className="flex flex-col flex-1">
-
         {/* TOPBAR */}
         <header className="h-14 bg-[#1a1a1a] border-b border-gray-800 flex items-center justify-between px-4 flex-shrink-0">
           <div className="flex items-center space-x-2 text-sm text-gray-400">
@@ -199,7 +185,6 @@ export default function GetNodeBoard() {
           onPointerUp={stopDrag}
         >
           <div className="relative w-full h-full">
-
             {/* NOTES */}
             {nodes.map((node) => (
               <div
@@ -214,9 +199,7 @@ export default function GetNodeBoard() {
                   initialX={0}
                   initialY={0}
                   onDelete={() =>
-                    setNodes((prev) =>
-                      prev.filter((n) => n.id !== node.id)
-                    )
+                    setNodes((prev) => prev.filter((n) => n.id !== node.id))
                   }
                 />
               </div>
@@ -241,10 +224,8 @@ export default function GetNodeBoard() {
                       const value = e.target.value;
                       setLinks((prev) =>
                         prev.map((l) =>
-                          l.id === link.id
-                            ? { ...l, url: value }
-                            : l
-                        )
+                          l.id === link.id ? { ...l, url: value } : l,
+                        ),
                       );
                     }}
                   />
@@ -258,7 +239,6 @@ export default function GetNodeBoard() {
                 <ToDoListManager />
               </div>
             </div>
-
           </div>
         </main>
       </div>
