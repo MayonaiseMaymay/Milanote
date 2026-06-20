@@ -1,10 +1,15 @@
 import { z } from "zod";
 
 export const CreateTextSchema = z.object({
-  text: z.string()
+  // Zod prüft jetzt auf "content" statt "text", passend zum Prisma-Schema
+  content: z.string()
     .max(500, "Puh, das ist etwas zu lang! Maximal 500 Zeichen erlaubt.")
-    .optional(), // optional, da die Notiz am Anfang ja noch leer ist
+    .optional(),
+  
+  // Die neuen Pflichtfelder für Position und Board-Zuordnung
+  x: z.number(),
+  y: z.number(),
+  boardId: z.string(),
 });
 
-// TypeScript-Typ automatisch generieren lassen
 export type CreateTextInput = z.infer<typeof CreateTextSchema>;

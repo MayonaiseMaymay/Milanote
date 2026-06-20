@@ -26,19 +26,29 @@ export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeT
   // --- ZOD & REACT-HOOK-FORM SETUP ---
   const form = useForm<CreateTextInput>({
     resolver: zodResolver(CreateTextSchema),
-    defaultValues: { text: "" },
+    defaultValues: { 
+      content: "",
+      x: initialX,
+      y: initialY,
+      boardId: "board-1" // Platzhalter, bis ihr eine dynamische Board-URL habt
+    },
   });
 
   // Fokus-Logik für react-hook-form
   useEffect(() => {
     if (isEditing) {
-      form.setFocus("text");
+      form.setFocus("content");
     }
   }, [isEditing, form]);
 
   // Server Action aufrufen
   async function onSubmit(data: CreateTextInput) {
     try {
+      // Vor dem Speichern sichern wir die exakt aktuelle Position
+      data.x = position.x;
+      data.y = position.y;
+      data.boardId = "board-1"; 
+
       await createText(data);
       setIsEditing(false); // Schreibmodus beenden, wenn alles glatt lief
     } catch (error) {
@@ -116,11 +126,10 @@ export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeT
       {/* FORMULAR BEREICH */}
       <form 
         className="flex-1 flex flex-col w-full h-full relative"
-        // Wenn man außerhalb klickt (onBlur), wird gespeichert und validiert
         onBlur={form.handleSubmit(onSubmit)} 
       >
         <textarea
-          {...form.register("text")}
+          {...form.register("content")}
           className={`w-full h-full resize-none outline-none bg-transparent text-gray-200 placeholder-gray-500 ${
             !isEditing ? 'pointer-events-none' : ''
           }`}
@@ -129,9 +138,9 @@ export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeT
         />
         
         {/* ZOD FEHLERMELDUNG */}
-        {form.formState.errors.text && (
+        {form.formState.errors.content && (
           <div className="absolute -bottom-8 left-0 text-red-500 text-xs bg-[#222] p-1 rounded border border-red-900 z-50 whitespace-nowrap">
-            {form.formState.errors.text.message}
+            {form.formState.errors.content.message}
           </div>
         )}
       </form>
