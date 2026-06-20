@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Trash2 } from "lucide-react";
+import Image from "next/image"; // <-- NEU: Next.js Image Component
 
 interface ImageInstance {
   id: string;
@@ -15,7 +16,7 @@ interface ImageInstance {
 // ==========================================
 // 1. DER BILD-MANAGER
 // ==========================================
-export default function ImageNodeManager() {
+export default function Get_node_ImageManager() {
   const [images, setImages] = useState<ImageInstance[]>([]);
   const [isTrashMode, setIsTrashMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,13 +30,11 @@ export default function ImageNodeManager() {
   }, [images, isTrashMode]);
 
   useEffect(() => {
-    // Synchronisiert den globalen Löschmodus
     const handleTrashSync = (e: Event) => {
       setIsTrashMode((e as CustomEvent).detail.isTrashMode);
     };
     window.addEventListener("milanote-trash-sync", handleTrashSync);
 
-    // Klick auf "Add image" in der Sidebar abfangen
     const handleSidebarClicks = (e: MouseEvent) => {
       const aside = document.querySelector("aside");
       if (!aside || !aside.contains(e.target as Node)) return;
@@ -45,7 +44,6 @@ export default function ImageNodeManager() {
         e.preventDefault();
         e.stopPropagation();
         if (!isTrashModeRef.current) {
-          // Öffnet unsichtbar den Datei-Dialog des Browsers
           fileInputRef.current?.click();
         }
       }
@@ -58,12 +56,10 @@ export default function ImageNodeManager() {
     };
   }, []);
 
-  // Wenn der Nutzer ein Bild ausgewählt hat
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Erstellt eine lokale URL für das Bild (Browser-Preview ohne Backend!)
     const objectUrl = URL.createObjectURL(file);
 
     const count = imagesRef.current.length;
@@ -74,13 +70,12 @@ export default function ImageNodeManager() {
       x: 150 + offset,
       y: 150 + offset,
       src: objectUrl,
-      width: 250, // Startgröße
+      width: 250, 
       height: 250,
     };
 
     setImages((prev) => [...prev, newImage]);
 
-    // Input zurücksetzen, damit das gleiche Bild nochmal gewählt werden kann
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -96,7 +91,7 @@ export default function ImageNodeManager() {
         title="Bild hochladen"
       />
       {images.map((img) => (
-        <IndividualImageNode
+        <Get_node_IndividualImage  // <-- Hier großes G
           key={img.id}
           image={img}
           isTrashMode={isTrashMode}
@@ -112,7 +107,7 @@ export default function ImageNodeManager() {
 // ==========================================
 // 2. DAS EINZELNE BILD-NODE
 // ==========================================
-function IndividualImageNode({
+function Get_node_IndividualImage({
   image,
   isTrashMode,
   onDeleteMe,
@@ -137,7 +132,6 @@ function IndividualImageNode({
     startH: number;
   } | null>(null);
 
-  // Dragging
   const handleDragPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isTrashMode) return;
     setIsDragging(true);
@@ -163,7 +157,6 @@ function IndividualImageNode({
     e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
-  // Resizing
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isTrashMode) return;
     e.stopPropagation();
@@ -179,7 +172,6 @@ function IndividualImageNode({
 
   const handleResizePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isResizing || !resizeRef.current) return;
-    // Bewahrt optional die Form, hier für Flexibilität frei skalierbar
     setSize({
       width: Math.max(
         100,
@@ -235,14 +227,17 @@ function IndividualImageNode({
         </div>
       )}
 
-      {/* Das Bild selbst */}
-      <img
-        src={image.src}
-        alt="Uploaded Node"
-        className="w-full h-full object-cover pointer-events-none"
-      />
+      {/* <-- OPTIMIERT: next/image Komponente anstelle von img --> */}
+      <div className="relative w-full h-full pointer-events-none">
+        <Image
+          src={image.src}
+          alt="Uploaded Node"
+          fill // Passt sich exakt an das resizable div an
+          unoptimized={image.src.startsWith('blob:')} // Verhindert Absturz bei lokalen Preview-Bildern
+          className="object-cover"
+        />
+      </div>
 
-      {/* Resize Handle unten rechts */}
       {!isTrashMode && (
         <div
           className="absolute bottom-0 right-0 w-8 h-8 cursor-nwse-resize flex items-end justify-end p-2 opacity-0 group-hover/image:opacity-100 transition-opacity bg-linear-to-tl from-black/40 to-transparent"
