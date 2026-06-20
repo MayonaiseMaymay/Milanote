@@ -5,6 +5,9 @@ import Get_node_Text from "./get_node_Text";
 import ToDoListManager from "@/components/ui/get_node_ToDoList";
 import ImageNodeManager from "@/components/ui/image_node";
 import FileNodeManager from "@/components/ui/file_node";
+import { createText } from "@/app/actions/createText";
+import { deleteText } from "@/app/actions/deleteText";         // <-- NEU
+import { updatePosition } from "@/app/actions/updatePosition"; // <-- NEU
 
 import {
   Search,
@@ -32,6 +35,7 @@ interface NodeItem {
   id: string;
   x: number;
   y: number;
+  content: string;
 }
 
 interface LinkItem {
@@ -41,11 +45,15 @@ interface LinkItem {
   url: string;
 }
 
+interface GetNodeBoardProps {
+  initialNodes?: NodeItem[];
+}
+
 // ================= MAIN =================
-export default function GetNodeBoard() {
+export default function GetNodeBoard({ initialNodes = [] }: GetNodeBoardProps) {
   const [tool, setTool] = useState<Tool>(null);
 
-  const [nodes, setNodes] = useState<NodeItem[]>([]);
+  const [nodes, setNodes] = useState<NodeItem[]>(initialNodes);
   const [links, setLinks] = useState<LinkItem[]>([]);
 
   const [dragging, setDragging] = useState<{
@@ -56,7 +64,7 @@ export default function GetNodeBoard() {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
   // ================= DROP =================
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -66,7 +74,17 @@ export default function GetNodeBoard() {
     const nodeType = e.dataTransfer.getData("node-type");
 
     if (nodeType === "Note") {
-      setNodes((prev) => [...prev, { id: crypto.randomUUID(), x, y }]);
+      const tempId = crypto.randomUUID();
+      
+      setNodes((prev) => [...prev, { id: tempId, x, y, content: "" }]);
+
+      const result = await createText({ x, y, boardId: "board-1", content: "" });
+      
+      if (result && result.success && result.data) {
+        setNodes((prev) =>
+          prev.map((n) => (n.id === tempId ? { ...n, id: result.data.id } : n))
+        );
+      }
     }
 
     if (nodeType === "Link") {
@@ -119,7 +137,19 @@ export default function GetNodeBoard() {
     }
   };
 
-  const stopDrag = () => setDragging(null);
+  const stopDrag = async () => {
+    if (!dragging) return;
+
+    // <-- NEU: Wenn das Draggen aufhört, speichern wir die neue Position in der DB
+    if (dragging.type === "node") {
+      const draggedNode = nodes.find((n) => n.id === dragging.id);
+      if (draggedNode) {
+        await updatePosition(draggedNode.id, draggedNode.x, draggedNode.y);
+      }
+    }
+
+    setDragging(null);
+  };
 
   // ================= UI =================
   return (
@@ -184,7 +214,7 @@ export default function GetNodeBoard() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           onPointerMove={onMove}
-          onPointerUp={stopDrag}
+          onPointerUp={stopDrag} // <-- Hier wird jetzt beim Loslassen gespeichert
         >
           <div className="relative w-full h-full">
             {/* NOTES */}
@@ -198,11 +228,13 @@ export default function GetNodeBoard() {
                 }
               >
                 <Get_node_Text
-                  initialX={0}
-                  initialY={0}
-                  onDelete={() =>
-                    setNodes((prev) => prev.filter((n) => n.id !== node.id))
-                  }
+                  id={node.id}
+                  initialContent={node.content}
+                  onDelete={async () => {
+                    // <-- NEU: Lokal entfernen UND aus der Datenbank löschen
+                    setNodes((prev) => prev.filter((n) => n.id !== node.id));
+                    await deleteText(node.id);
+                  }}
                 />
               </div>
             ))}

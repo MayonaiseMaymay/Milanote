@@ -2,6 +2,7 @@
 
 import { prisma } from "../../lib/prisma";
 import { CreateTextSchema, type CreateTextInput } from "@/app/schema/text";
+import { revalidatePath } from "next/cache";
 
 export async function createText(input: CreateTextInput) {
   // 1. Zod-Validierung zur Laufzeit
@@ -16,6 +17,9 @@ export async function createText(input: CreateTextInput) {
       boardId: validated.boardId,
     },
   });
+  
+  // 3. Cache leeren, damit der neue get_node_Text direkt auf dem Board erscheint
+  revalidatePath("/");
   
   return { success: true, data: newNote };
 }

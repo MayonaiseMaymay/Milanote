@@ -1,36 +1,27 @@
-'use client';
+"use client";
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateTextSchema, type CreateTextInput } from "@/app/schema/text";
-import { createText } from "@/app/actions/createText";
+import { updateText } from "@/app/actions/updateText"; // <-- NEU
 
 interface GetNodeTextProps {
-  initialX: number;
-  initialY: number;
+  id: string; // <-- WICHTIG: Wir brauchen die ID aus der DB!
+  initialContent: string;
   onDelete: () => void;
 }
 
-export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeTextProps) {
-  const [position, setPosition] = useState({ x: initialX, y: initialY });
+export default function Get_node_Text({ id, initialContent, onDelete }: GetNodeTextProps) {
+  // Dragging und eigene Positionierung sind komplett weg!
   const [size, setSize] = useState({ width: 250, height: 120 });
-  const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const dragRef = useRef<{ startX: number; startY: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // --- ZOD & REACT-HOOK-FORM SETUP ---
-  const form = useForm<CreateTextInput>({
-    resolver: zodResolver(CreateTextSchema),
+  const form = useForm({
     defaultValues: { 
-      content: "",
-      x: initialX,
-      y: initialY,
-      boardId: "board-1" // Platzhalter, bis ihr eine dynamische Board-URL habt
+      content: initialContent || "",
     },
   });
 
@@ -41,45 +32,19 @@ export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeT
     }
   }, [isEditing, form]);
 
-  // Server Action aufrufen
-  async function onSubmit(data: CreateTextInput) {
+  // Server Action aufrufen (UPDATE statt CREATE)
+  async function onSubmit(data: { content: string }) {
     try {
-      // Vor dem Speichern sichern wir die exakt aktuelle Position
-      data.x = position.x;
-      data.y = position.y;
-      data.boardId = "board-1"; 
-
-      await createText(data);
-      setIsEditing(false); // Schreibmodus beenden, wenn alles glatt lief
+      await updateText(id, data.content);
+      setIsEditing(false); 
     } catch (error) {
       console.error("Fehler beim Speichern:", error);
     }
   }
 
-  // --- DRAG LOGIK ---
-  const handleDragPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isEditing) return;
-    containerRef.current?.focus();
-    setIsDragging(true);
-    dragRef.current = { startX: e.clientX - position.x, startY: e.clientY - position.y };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const handleDragPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || !dragRef.current) return;
-    setPosition({ x: e.clientX - dragRef.current.startX, y: e.clientY - dragRef.current.startY });
-  };
-
-  const handleDragPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    dragRef.current = null;
-    e.currentTarget.releasePointerCapture(e.pointerId);
-  };
-
   // --- RESIZE LOGIK ---
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Wichtig, damit das Board nicht denkt, wir wollen draggen!
     setIsResizing(true);
     resizeRef.current = { startX: e.clientX, startY: e.clientY, startW: size.width, startH: size.height };
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -100,7 +65,6 @@ export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeT
     e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
-  // --- TASTATUR LOGIK ---
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if ((e.key === 'Backspace' || e.key === 'Delete') && !isEditing) {
       onDelete();
@@ -111,19 +75,16 @@ export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeT
     <div
       ref={containerRef}
       tabIndex={0}
-      className={`absolute p-4 bg-[#333333] border rounded shadow-lg flex flex-col transition-colors outline-none focus:border-blue-500 ${
+      // "absolute", "left" und "top" sind weg. Das div ist jetzt 100% so groß wie das Elternelement vorgibt!
+      className={`relative p-4 bg-[#333333] border rounded shadow-lg flex flex-col transition-colors outline-none focus:border-blue-500 w-full h-full ${
         !isEditing 
-          ? (isDragging ? 'cursor-grabbing border-gray-500' : 'cursor-grab border-[#444444] hover:border-gray-500') 
+          ? 'cursor-grab border-[#444444] hover:border-gray-500' 
           : 'cursor-default border-blue-500'
       }`}
-      style={{ left: position.x, top: position.y, width: size.width, height: size.height }}
-      onPointerDown={handleDragPointerDown}
-      onPointerMove={handleDragPointerMove}
-      onPointerUp={handleDragPointerUp}
+      style={{ width: size.width, height: size.height }}
       onDoubleClick={() => setIsEditing(true)}
       onKeyDown={handleKeyDown}
     >
-      {/* FORMULAR BEREICH */}
       <form 
         className="flex-1 flex flex-col w-full h-full relative"
         onBlur={form.handleSubmit(onSubmit)} 
@@ -136,16 +97,8 @@ export default function get_node_Text({ initialX, initialY, onDelete }: GetNodeT
           placeholder="Schreib etwas..."
           readOnly={!isEditing}
         />
-        
-        {/* ZOD FEHLERMELDUNG */}
-        {form.formState.errors.content && (
-          <div className="absolute -bottom-8 left-0 text-red-500 text-xs bg-[#222] p-1 rounded border border-red-900 z-50 whitespace-nowrap">
-            {form.formState.errors.content.message}
-          </div>
-        )}
       </form>
 
-      {/* RESIZE HANDLE */}
       <div
         className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-1 opacity-40 hover:opacity-100"
         onPointerDown={handleResizePointerDown}
