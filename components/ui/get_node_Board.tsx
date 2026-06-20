@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import Get_node_Text from "./get_node_Text";
 import ToDoListManager from "@/components/ui/get_node_ToDoList";
+import ImageNodeManager from "@/components/ui/image_node";
+import FileNodeManager from "@/components/ui/file_node";
 
 import {
   Search,
@@ -237,6 +239,8 @@ export default function GetNodeBoard() {
             <div className="absolute inset-0 pointer-events-none">
               <div className="pointer-events-auto">
                 <ToDoListManager />
+                <ImageNodeManager />
+                <FileNodeManager />
               </div>
             </div>
           </div>
