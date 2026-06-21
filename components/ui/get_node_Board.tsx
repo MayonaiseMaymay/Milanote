@@ -2,12 +2,18 @@
 
 import React, { useState } from "react";
 import Get_node_Text from "./get_node_Text";
-import ToDoListManager from "@/components/ui/get_node_ToDoList";
+import ToDoListManager, {
+  IndividualToDoList,
+} from "@/components/ui/get_node_ToDoList";
 import ImageNodeManager from "@/components/ui/image_node";
 import FileNodeManager from "@/components/ui/file_node";
 import { createText } from "@/app/actions/createText";
-import { deleteText } from "@/app/actions/deleteText"; // <-- NEU
-import { updatePosition } from "@/app/actions/updatePosition"; // <-- NEU
+import { deleteText } from "@/app/actions/deleteText";
+import { updatePosition } from "@/app/actions/updatePosition";
+import { createTodoList } from "@/app/actions/createTodoList";
+import { updateTodoListPosition } from "@/app/actions/updateTodoListPosition";
+import { deleteTodoList } from "@/app/actions/deleteTodoList";
+import TrashButton from "./trash_button";
 
 import {
   Search,
@@ -29,7 +35,7 @@ import {
 } from "lucide-react";
 
 // ================= TYPES =================
-type Tool = "note" | "link" | null;
+type Tool = "note" | "link" | "todo" | null;
 
 interface NodeItem {
   id: string;
@@ -37,154 +43,160 @@ interface NodeItem {
   y: number;
   content?: string;
 }
-
 interface LinkItem {
   id: string;
   x: number;
   y: number;
   url: string;
 }
-
-interface GetNodeBoardProps {
-  initialNodes?: NodeItem[];
+interface ListInstance {
+  id: string;
+  x: number;
+  y: number;
+  title: string;
 }
 
 // ================= MAIN =================
 export default function GetNodeBoard({
   initialNodes = [],
+  initialTodos = [],
+  initialTodoLists = [], // <-- NEU: Prop empfangen
 }: {
   initialNodes?: NodeItem[];
+  initialTodos?: any[];
+  initialTodoLists?: ListInstance[]; // <-- NEU: Typ definieren
 }) {
   const [tool, setTool] = useState<Tool>(null);
-
   const [nodes, setNodes] = useState<NodeItem[]>(initialNodes);
   const [links, setLinks] = useState<LinkItem[]>([]);
 
+  // NEU: Den State mit den Daten aus der Datenbank füllen!
+  const [todoLists, setTodoLists] = useState<ListInstance[]>(initialTodoLists);
+
   const [dragging, setDragging] = useState<{
-    type: "node" | "link";
+    type: "node" | "link" | "todo";
     id: string;
   } | null>(null);
-
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
-  // ================= DROP =================
+  // ================= DRAG & DROP LOGIK =================
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
     const nodeType = e.dataTransfer.getData("node-type");
 
     if (nodeType === "Note") {
       const tempId = crypto.randomUUID();
-
       setNodes((prev) => [...prev, { id: tempId, x, y, content: "" }]);
-
       const result = await createText({
         x,
         y,
         boardId: "board-1",
         content: "",
       });
-
       if (result && result.success && result.data) {
         setNodes((prev) =>
           prev.map((n) => (n.id === tempId ? { ...n, id: result.data.id } : n)),
         );
       }
-    }
-
-    if (nodeType === "Link") {
-      setLinks((prev) => [
+    } else if (nodeType === "Link") {
+      setLinks((prev) => [...prev, { id: crypto.randomUUID(), x, y, url: "" }]);
+    } else if (nodeType === "Todo") {
+      const listId = crypto.randomUUID();
+      // 1. Im State anzeigen (lokal)
+      setTodoLists((prev) => [
         ...prev,
-        {
-          id: crypto.randomUUID(),
-          x,
-          y,
-          url: "",
-        },
+        { id: listId, x, y, title: "Neue To-Do Liste" },
       ]);
+      // 2. In der Datenbank speichern!
+      await createTodoList(listId, x, y, "board-1");
     }
   };
 
-  // ================= DRAG =================
   const startDrag = (
     e: React.PointerEvent,
-    type: "node" | "link",
+    type: "node" | "link" | "todo",
     id: string,
     x: number,
     y: number,
   ) => {
     setDragging({ type, id });
-
-    setOffset({
-      x: e.clientX - x,
-      y: e.clientY - y,
-    });
+    setOffset({ x: e.clientX - x, y: e.clientY - y });
   };
 
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-
     const rect = e.currentTarget.getBoundingClientRect();
-
     const x = e.clientX - rect.left - offset.x;
     const y = e.clientY - rect.top - offset.y;
 
-    if (dragging.type === "node") {
+    if (dragging.type === "node")
       setNodes((prev) =>
         prev.map((n) => (n.id === dragging.id ? { ...n, x, y } : n)),
       );
-    }
-
-    if (dragging.type === "link") {
+    if (dragging.type === "link")
       setLinks((prev) =>
         prev.map((l) => (l.id === dragging.id ? { ...l, x, y } : l)),
       );
-    }
+    if (dragging.type === "todo")
+      setTodoLists((prev) =>
+        prev.map((l) => (l.id === dragging.id ? { ...l, x, y } : l)),
+      );
   };
 
   const stopDrag = async () => {
     if (!dragging) return;
 
-    // <-- NEU: Wenn das Draggen aufhört, speichern wir die neue Position in der DB
-    if (dragging.type === "node") {
+    if (dragging?.type === "node") {
       const draggedNode = nodes.find((n) => n.id === dragging.id);
-      if (draggedNode) {
+      if (draggedNode)
         await updatePosition(draggedNode.id, draggedNode.x, draggedNode.y);
-      }
     }
-
+    if (dragging.type === "todo") {
+      const draggedList = todoLists.find((l) => l.id === dragging.id);
+      if (draggedList)
+        await updateTodoListPosition(
+          draggedList.id,
+          draggedList.x,
+          draggedList.y,
+        );
+    }
     setDragging(null);
   };
 
-  // ================= UI =================
   return (
     <div className="flex w-full h-full bg-[#222222] text-gray-200 font-sans overflow-hidden">
+      <TrashButton />
+
       {/* ================= SIDEBAR ================= */}
       <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
         <div className="space-y-6 flex-1 w-full">
           <SidebarIcon
             icon={<Type size={20} />}
             label="Note"
-            active={tool === "note"}
-            onClick={() => setTool("note")}
             draggable
-            onDragStart={(e) => e.dataTransfer.setData("node-type", "Note")}
+            onDragStart={(e: any) =>
+              e.dataTransfer.setData("node-type", "Note")
+            }
           />
-
           <SidebarIcon
             icon={<Link size={20} />}
             label="Link"
-            active={tool === "link"}
-            onClick={() => setTool("link")}
             draggable
-            onDragStart={(e) => e.dataTransfer.setData("node-type", "Link")}
+            onDragStart={(e: any) =>
+              e.dataTransfer.setData("node-type", "Link")
+            }
           />
-
-          <SidebarIcon icon={<CheckSquare size={20} />} label="To-do" />
+          <SidebarIcon
+            icon={<CheckSquare size={20} />}
+            label="To-do"
+            draggable
+            onDragStart={(e: any) =>
+              e.dataTransfer.setData("node-type", "Todo")
+            }
+          />
           <SidebarIcon icon={<PenTool size={20} />} label="Line" />
           <SidebarIcon icon={<LayoutGrid size={20} />} label="Board" />
 
@@ -194,7 +206,6 @@ export default function GetNodeBoard({
           <SidebarIcon icon={<Download size={20} />} label="Upload" />
           <SidebarIcon icon={<Pen size={20} />} label="Draw" />
         </div>
-
         <SidebarIcon icon={<Trash size={20} />} label="Trash" />
       </aside>
 
@@ -223,7 +234,7 @@ export default function GetNodeBoard({
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           onPointerMove={onMove}
-          onPointerUp={stopDrag} // <-- Hier wird jetzt beim Loslassen gespeichert
+          onPointerUp={stopDrag}
         >
           <div className="relative w-full h-full">
             {/* NOTES */}
@@ -240,7 +251,6 @@ export default function GetNodeBoard({
                   id={node.id}
                   initialContent={node.content || ""}
                   onDelete={async () => {
-                    // <-- NEU: Lokal entfernen UND aus der Datenbank löschen
                     setNodes((prev) => prev.filter((n) => n.id !== node.id));
                     await deleteText(node.id);
                   }}
@@ -262,6 +272,7 @@ export default function GetNodeBoard({
                   <input
                     className="w-full bg-transparent border border-gray-700 p-1 text-sm text-gray-200"
                     placeholder="https://..."
+                    aria-label="Link URL"
                     value={link.url}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -276,14 +287,36 @@ export default function GetNodeBoard({
               </div>
             ))}
 
-            {/* TODO OVERLAY */}
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="pointer-events-auto">
-                <ToDoListManager />
-                <ImageNodeManager />
-                <FileNodeManager />
+            {/* TODO LISTEN */}
+            {todoLists.map((list) => (
+              <div
+                key={list.id}
+                className="absolute"
+                style={{ left: list.x, top: list.y }}
+                onPointerDown={(e) =>
+                  startDrag(e, "todo", list.id, list.x, list.y)
+                }
+              >
+                <IndividualToDoList
+                  list={list}
+                  isTrashMode={false}
+                  onDeleteMe={async () => {
+                    // 1. Sofort aus dem UI entfernen
+                    setTodoLists((prev) =>
+                      prev.filter((l) => l.id !== list.id),
+                    );
+                    // 2. Aus der Datenbank löschen
+                    await deleteTodoList(list.id);
+                  }}
+                  initialTodos={(initialTodos || []).filter(
+                    (t) => t.todoListId === list.id,
+                  )}
+                />
               </div>
-            </div>
+            ))}
+
+            <ImageNodeManager />
+            <FileNodeManager />
           </div>
         </main>
       </div>
