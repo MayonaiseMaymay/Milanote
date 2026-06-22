@@ -20,8 +20,11 @@ export default async function Home() {
     },
   });
 
-  // 2. Jetzt erst die Notes für dieses Board holen
-  const dbNotes = await prisma.note.findMany({
+  // 2. Daten aus der Datenbank holen
+  const dbNotes = await prisma.note.findMany({ where: { boardId: "board-1" } });
+  const dbTodos = await prisma.todo.findMany({ where: { boardId: "board-1" } });
+  // NEU: Todo-Listen aus der DB holen
+  const dbTodoLists = await prisma.todoList.findMany({
     where: { boardId: "board-1" },
   });
 
@@ -33,9 +36,21 @@ export default async function Home() {
     content: note.content || "",
   }));
 
+  const formattedTodos = dbTodos.map((todo: any) => ({
+    id: todo.id,
+    text: todo.content,
+    completed: todo.completed,
+    todoListId: todo.todoListId,
+  }));
+
+  // 4. An das Board übergeben
   return (
     <div className="w-screen h-screen overflow-hidden">
-      <GetNodeBoard initialNodes={initialNodes} />
+      <GetNodeBoard
+        initialNodes={initialNodes}
+        initialTodos={formattedTodos}
+        initialTodoLists={dbTodoLists}
+      />
     </div>
   );
 }

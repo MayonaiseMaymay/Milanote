@@ -8,27 +8,51 @@ datasource db {
 }
 
 model User {
-  id      String  @id @default(cuid())
-  email   String  @unique
-  name    String?
-  boards  Board[]
+  id     String  @id @default(cuid())
+  email  String  @unique
+  name   String?
+  boards Board[]
 }
 
 model Board {
-  id      String @id @default(cuid())
-  title   String
-  userId  String
-  user    User   @relation(fields: [userId], references: [id])
-  notes   Note[]
-  createdAt DateTime @default(now())
+  id        String     @id @default(cuid())
+  title     String
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  notes     Note[]
+  todos     Todo[]
+  todoLists TodoList[]
+  createdAt DateTime   @default(now())
 }
 
 model Note {
   id        String   @id @default(cuid())
   content   String
-  x         Float    // Position X (für Drag & Drop)
-  y         Float    // Position Y
+  x         Float // Position X (für Drag & Drop)
+  y         Float // Position Y
   boardId   String
   board     Board    @relation(fields: [boardId], references: [id])
   createdAt DateTime @default(now())
+}
+
+model TodoList {
+  id        String   @id @default(uuid())
+  title     String   @default("Neue To-Do Liste")
+  x         Float
+  y         Float
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id])
+  todos     Todo[] // Verknüpfung zu den einzelnen Todos
+  createdAt DateTime @default(now())
+}
+
+model Todo {
+  id         String   @id @default(uuid())
+  content    String
+  completed  Boolean  @default(false)
+  todoListId String   
+  todoList   TodoList @relation(fields: [todoListId], references: [id], onDelete: Cascade) 
+  boardId    String
+  board      Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
 }
