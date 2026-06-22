@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 import Get_node_Text from "./get_node_Text";
-import Get_node_SubBoard from "./get_node_SubBoard"; 
+import Get_node_SubBoard from "./get_node_SubBoard";
 import Get_node_ImageManager from "@/components/ui/get_node_image";
 import ToDoListManager, {
   IndividualToDoList,
 } from "@/components/ui/get_node_ToDoList";
-import ImageNodeManager from "@/components/ui/image_node";
+import ImageNodeManager from "@/components/ui/get_node_image";
 import FileNodeManager from "@/components/ui/file_node";
 
 import { createText } from "@/app/actions/createText";
@@ -77,10 +77,10 @@ interface GetNodeBoardProps {
   breadcrumbs?: { id: string; title: string }[];
   initialNodes?: NodeItem[];
   initialSubBoards?: SubBoardItem[];
-  initialTodos?: TodoItem[]; 
-  initialTodoLists?: ListInstance[]; 
+  initialTodos?: TodoItem[];
+  initialTodoLists?: ListInstance[];
 }
-  
+
 interface TodoItem {
   id: string;
   text: string;
@@ -98,17 +98,17 @@ export default function GetNodeBoard({
   initialTodoLists = [],
 }: GetNodeBoardProps) {
   const router = useRouter();
-  
+
   const [tool, setTool] = useState<Tool>(null);
   const [nodes, setNodes] = useState<NodeItem[]>(initialNodes);
   const [subBoards, setSubBoards] = useState<SubBoardItem[]>(initialSubBoards);
   const [links, setLinks] = useState<LinkItem[]>([]);
 
-  // NEU: Den State mit den Daten aus der Datenbank füllen!
+  // State mit den initialen Todo-Listen aus der DB befüllen
   const [todoLists, setTodoLists] = useState<ListInstance[]>(initialTodoLists);
 
   const [dragging, setDragging] = useState<{
-    type: "node" | "link" | "board" | "todo"; 
+    type: "node" | "link" | "board" | "todo";
     id: string;
   } | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -127,37 +127,32 @@ export default function GetNodeBoard({
       const result = await createText({
         x,
         y,
-        boardId: "board-1",
+        boardId: boardId, // KORRIGIERT: Nutzt jetzt die dynamische boardId statt der statischen "board-1"
         content: "",
       });
       if (result && result.success && result.data) {
         setNodes((prev) =>
-          prev.map((n) => (n.id === tempId ? { ...n, id: result.data.id } : n))
+          prev.map((n) => (n.id === tempId ? { ...n, id: result.data.id } : n)),
         );
       } else {
-        // Rollback & Error-Toast
         setNodes((prev) => prev.filter((n) => n.id !== tempId));
         toast.error("Fehler beim Erstellen der Notiz.");
       }
-    }
-
     } else if (nodeType === "Board") {
       const tempId = crypto.randomUUID();
-      // Sofort lokal anzeigen
       setSubBoards((prev) => [
         ...prev,
         { id: tempId, x, y, title: "New Board", cardCount: 0 },
       ]);
 
-      // In Datenbank speichern
       const result = await createSubBoard(boardId, x, y);
       if (result && result.success && result.data) {
         setSubBoards((prev) =>
-          prev.map((b) => (b.id === tempId ? { ...b, id: result.data.id } : b))
+          prev.map((b) => (b.id === tempId ? { ...b, id: result.data.id } : b)),
         );
       } else {
         setSubBoards((prev) => prev.filter((b) => b.id !== tempId));
-        toast.error("Fehler beim Erstellen des Boards."); 
+        toast.error("Fehler beim Erstellen des Boards.");
       }
     } else if (nodeType === "Link") {
       setLinks((prev) => [...prev, { id: crypto.randomUUID(), x, y, url: "" }]);
@@ -167,14 +162,14 @@ export default function GetNodeBoard({
         ...prev,
         { id: listId, x, y, title: "Neue To-Do Liste" },
       ]);
-     
+
       await createTodoList(listId, x, y, boardId);
     }
   };
 
   const startDrag = (
     e: React.PointerEvent,
-    type: "node" | "link" | "board" | "todo";
+    type: "node" | "link" | "board" | "todo",
     id: string,
     x: number,
     y: number,
@@ -189,11 +184,11 @@ export default function GetNodeBoard({
     const x = e.clientX - rect.left - offset.x;
     const y = e.clientY - rect.top - offset.y;
 
-    if (dragging.type === "node")
+    if (dragging.type === "node") {
       setNodes((prev) =>
         prev.map((n) => (n.id === dragging.id ? { ...n, x, y } : n)),
       );
-} else if (dragging.type === "board") {
+    } else if (dragging.type === "board") {
       setSubBoards((prev) =>
         prev.map((b) => (b.id === dragging.id ? { ...b, x, y } : b)),
       );
@@ -211,29 +206,23 @@ export default function GetNodeBoard({
   const stopDrag = async () => {
     if (!dragging) return;
 
-if (dragging.type === "node") {
+    if (dragging.type === "node") {
       const draggedNode = nodes.find((n) => n.id === dragging.id);
       if (draggedNode) {
         await updatePosition(draggedNode.id, draggedNode.x, draggedNode.y);
       }
     } else if (dragging.type === "board") {
       const draggedBoard = subBoards.find((b) => b.id === dragging.id);
-  
+      // Hierfür wird später die updateBoardPosition Server Action benötigt
     } else if (dragging.type === "todo") {
       const draggedList = todoLists.find((l) => l.id === dragging.id);
       if (draggedList) {
-        await updateTodoListPosition(draggedList.id, draggedList.x, draggedList.y);
-      }
-    }
-  };
-    if (dragging.type === "todo") {
-      const draggedList = todoLists.find((l) => l.id === dragging.id);
-      if (draggedList)
         await updateTodoListPosition(
           draggedList.id,
           draggedList.x,
           draggedList.y,
         );
+      }
     }
     setDragging(null);
   };
@@ -270,10 +259,10 @@ if (dragging.type === "node") {
             }
           />
           <SidebarIcon icon={<PenTool size={20} />} label="Line" />
-          
-          <SidebarIcon 
-            icon={<LayoutGrid size={20} />} 
-            label="Board" 
+
+          <SidebarIcon
+            icon={<LayoutGrid size={20} />}
+            label="Board"
             active={tool === "board"}
             onClick={() => setTool("board")}
             draggable
@@ -292,11 +281,13 @@ if (dragging.type === "node") {
       {/* ================= MAIN ================= */}
       <div className="flex flex-col flex-1">
         {/* TOPBAR MIT DYNAMISCHEN BREADCRUMBS */}
-       <header className="h-14 bg-[#1a1a1a] flex items-center px-6 border-b border-gray-800 flex-shrink-0 z-50">
+        <header className="h-14 bg-[#1a1a1a] flex items-center px-6 border-b border-gray-800 flex-shrink-0 z-50">
           {breadcrumbs.map((crumb, idx) => (
             <React.Fragment key={crumb.id}>
-              {idx > 0 && <span className="mx-3 text-gray-500 font-light text-xl">/</span>}
-              
+              {idx > 0 && (
+                <span className="mx-3 text-gray-500 font-light text-xl">/</span>
+              )}
+
               <span
                 className={`transition-colors text-lg tracking-wide ${
                   idx === breadcrumbs.length - 1
@@ -324,23 +315,30 @@ if (dragging.type === "node") {
           onPointerUp={stopDrag}
         >
           <div className="relative w-full h-full">
-            
             {/* SUB-BOARDS RENDERN */}
             {subBoards.map((board) => (
               <div
                 key={board.id}
                 className="absolute"
                 style={{ left: board.x, top: board.y }}
-                onPointerDown={(e) => startDrag(e, "board", board.id, board.x, board.y)}
+                onPointerDown={(e) =>
+                  startDrag(e, "board", board.id, board.x, board.y)
+                }
               >
                 <Get_node_SubBoard
                   id={board.id}
                   initialTitle={board.title}
                   cardCount={board.cardCount}
-                  onDelete={() => setSubBoards((prev) => prev.filter((b) => b.id !== board.id))}
+                  onDelete={() =>
+                    setSubBoards((prev) =>
+                      prev.filter((b) => b.id !== board.id),
+                    )
+                  }
                   onUpdateTitle={async (newTitle: string) => {
                     setSubBoards((prev) =>
-                      prev.map((b) => (b.id === board.id ? { ...b, title: newTitle } : b))
+                      prev.map((b) =>
+                        b.id === board.id ? { ...b, title: newTitle } : b,
+                      ),
                     );
                     await updateSubBoardTitle(board.id, newTitle, boardId);
                   }}
@@ -354,7 +352,9 @@ if (dragging.type === "node") {
                 key={node.id}
                 className="absolute"
                 style={{ left: node.x, top: node.y }}
-                onPointerDown={(e) => startDrag(e, "node", node.id, node.x, node.y)}
+                onPointerDown={(e) =>
+                  startDrag(e, "node", node.id, node.x, node.y)
+                }
               >
                 <Get_node_Text
                   id={node.id}
@@ -373,7 +373,9 @@ if (dragging.type === "node") {
                 key={link.id}
                 className="absolute"
                 style={{ left: link.x, top: link.y }}
-                onPointerDown={(e) => startDrag(e, "link", link.id, link.x, link.y)}
+                onPointerDown={(e) =>
+                  startDrag(e, "link", link.id, link.x, link.y)
+                }
               >
                 <div className="bg-[#1f1f1f] border border-gray-700 p-3 rounded-md w-56">
                   <input
@@ -383,7 +385,11 @@ if (dragging.type === "node") {
                     value={link.url}
                     onChange={(e) => {
                       const value = e.target.value;
-                      setLinks((prev) => prev.map((l) => (l.id === link.id ? { ...l, url: value } : l)));
+                      setLinks((prev) =>
+                        prev.map((l) =>
+                          l.id === link.id ? { ...l, url: value } : l,
+                        ),
+                      );
                     }}
                   />
                 </div>
@@ -404,20 +410,14 @@ if (dragging.type === "node") {
                   list={list}
                   isTrashMode={false}
                   onDeleteMe={async () => {
-                    // 1. Originalzustand merken
                     const originalLists = [...todoLists];
-
-                    // 2. Sofort aus dem UI entfernen
                     setTodoLists((prev) =>
                       prev.filter((l) => l.id !== list.id),
                     );
 
-                    // 3. Aus der Datenbank löschen
                     const result = await deleteTodoList(list.id);
-
-                    // 4. Da result jetzt nur true oder false ist, fragen wir einfach: "Wenn NICHT result..."
                     if (!result) {
-                      setTodoLists(originalLists); // Liste wieder anzeigen
+                      setTodoLists(originalLists);
                       alert(
                         "Fehler: Die Liste konnte nicht aus der Datenbank gelöscht werden!",
                       );
