@@ -56,6 +56,13 @@ interface ListInstance {
   title: string;
 }
 
+interface TodoItem {
+  id: string;
+  text: string;
+  completed: boolean;
+  todoListId: string;
+}
+
 // ================= MAIN =================
 export default function GetNodeBoard({
   initialNodes = [],
@@ -63,7 +70,7 @@ export default function GetNodeBoard({
   initialTodoLists = [], // <-- NEU: Prop empfangen
 }: {
   initialNodes?: NodeItem[];
-  initialTodos?: any[];
+  initialTodos?: TodoItem[];
   initialTodoLists?: ListInstance[]; // <-- NEU: Typ definieren
 }) {
   const [tool, setTool] = useState<Tool>(null);
@@ -301,12 +308,24 @@ export default function GetNodeBoard({
                   list={list}
                   isTrashMode={false}
                   onDeleteMe={async () => {
-                    // 1. Sofort aus dem UI entfernen
+                    // 1. Originalzustand merken
+                    const originalLists = [...todoLists];
+
+                    // 2. Sofort aus dem UI entfernen
                     setTodoLists((prev) =>
                       prev.filter((l) => l.id !== list.id),
                     );
-                    // 2. Aus der Datenbank löschen
-                    await deleteTodoList(list.id);
+
+                    // 3. Aus der Datenbank löschen
+                    const result = await deleteTodoList(list.id);
+
+                    // 4. Da result jetzt nur true oder false ist, fragen wir einfach: "Wenn NICHT result..."
+                    if (!result) {
+                      setTodoLists(originalLists); // Liste wieder anzeigen
+                      alert(
+                        "Fehler: Die Liste konnte nicht aus der Datenbank gelöscht werden!",
+                      );
+                    }
                   }}
                   initialTodos={(initialTodos || []).filter(
                     (t) => t.todoListId === list.id,

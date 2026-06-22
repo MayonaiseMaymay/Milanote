@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 export async function deleteTodoList(id: string) {
   try {
     await prisma.todoList.delete({
-      where: { id: id },
+      where: { id },
     });
     revalidatePath("/");
     return { success: true };

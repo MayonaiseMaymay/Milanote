@@ -48,7 +48,7 @@ export default async function Home() {
     <div className="w-screen h-screen overflow-hidden">
       <GetNodeBoard
         initialNodes={initialNodes}
-        initialTodos={dbTodos}
+        initialTodos={formattedTodos}
         initialTodoLists={dbTodoLists}
       />
     </div>

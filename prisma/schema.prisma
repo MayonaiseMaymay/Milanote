@@ -50,9 +50,9 @@ model Todo {
   id         String   @id @default(uuid())
   content    String
   completed  Boolean  @default(false)
-  todoListId String
-  todoList   TodoList @relation(fields: [todoListId], references: [id], onDelete: Cascade) // <-- HINZUFÜGEN
+  todoListId String   
+  todoList   TodoList @relation(fields: [todoListId], references: [id], onDelete: Cascade) 
   boardId    String
-  board      Board    @relation(fields: [boardId], references: [id])
+  board      Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
 }

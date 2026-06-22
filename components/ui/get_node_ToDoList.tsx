@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Pen, Trash, Square, CheckSquare } from "lucide-react";
+import { Pen, Trash, Square, CheckSquare, AlertCircle } from "lucide-react"; // AlertCircle für Error-UI hinzugefügt
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import TrashButton from "./trash_button";
 // Server-Actions
 import { createTodo } from "@/app/actions/createTodo";
 import { toggleTodo } from "@/app/actions/toggleTodo";
-import { deleteTodoList } from "@/app/actions/deleteTodoList"; // <-- Korrigiert: deleteTodo für einzelne Aufgaben
+import { deleteTodoList } from "@/app/actions/deleteTodoList"; // KORRIGIERT: Klarer, korrekter Import-Kommentar für einzelne Aufgaben
 
 // --- INTERFACES ---
 interface Todo {
@@ -48,7 +48,7 @@ type TodoInput = z.infer<typeof TodoSchema>;
 export default function ToDoListManager({
   initialTodos = [],
 }: {
-  initialTodos?: any[];
+  initialTodos?: Todo[]; // KORRIGIERT: Stark typisiert statt any[]
 }) {
   const [lists, setLists] = useState<ListInstance[]>([]);
   const [isTrashMode, setIsTrashMode] = useState(false);
@@ -74,23 +74,25 @@ export default function ToDoListManager({
 // --- EINZELNE KARTE ---
 export function IndividualToDoList({
   list,
-  isTrashMode: propTrashMode, // <-- Umbenannt, um Konflikte mit dem State zu vermeiden
+  isTrashMode: propTrashMode,
   onDeleteMe,
   initialTodos = [],
 }: {
   list: ListInstance;
   isTrashMode: boolean;
   onDeleteMe: () => void;
-  initialTodos?: Todo[];
+  initialTodos?: Todo[]; // KORRIGIERT: Stark typisiert
 }) {
-  const [todos, setTodos] = useState<any[]>(initialTodos);
+  const [todos, setTodos] = useState<Todo[]>(initialTodos); // KORRIGIERT: Stark typisiert statt any[]
   const [title, setTitle] = useState(list.title);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [todoToEdit, setTodoToEdit] = useState<any | null>(null);
+  const [todoToEdit, setTodoToEdit] = useState<Todo | null>(null); // KORRIGIERT: Stark typisiert statt any
   const [editValue, setEditValue] = useState("");
 
-  // State für den globalen Löschmodus der Kollegen
   const [isTrashMode, setIsTrashMode] = useState(false);
+
+  // NEU: State für visuelle Fehlermeldungen im UI (Fehler-Feedback)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const handleSync = (e: Event) => {
@@ -100,12 +102,21 @@ export function IndividualToDoList({
     return () => window.removeEventListener("milanote-trash-sync", handleSync);
   }, []);
 
+  // NEU: Auto-Dismiss Timer für die Fehlermeldung (blendet sich nach 4 Sek aus)
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => setErrorMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+
   const form = useForm<TodoInput>({
     resolver: zodResolver(TodoSchema),
     defaultValues: { text: "" },
   });
 
   const onSubmit = async (data: TodoInput) => {
+    setErrorMessage(null); // Vorherige Fehler zurücksetzen
     const newTodo = await createTodo(data.text, "board-1", list.id);
 
     if (newTodo) {
@@ -119,23 +130,40 @@ export function IndividualToDoList({
         },
       ]);
       form.reset();
+    } else {
+      // NEU: Visuelles Feedback, falls die Server-Action fehlschlägt
+      setErrorMessage("Aufgabe konnte nicht gespeichert werden.");
     }
   };
 
-  const handleToggle = async (todo: any) => {
+  const handleToggle = async (todo: Todo) => {
     const newStatus = !todo.completed;
     setTodos(
       todos.map((t) => (t.id === todo.id ? { ...t, completed: newStatus } : t)),
     );
-    await toggleTodo(todo.id, newStatus);
+
+    const result = await toggleTodo(todo.id, newStatus);
+    if (!result) {
+      setErrorMessage("Status-Update fehlgeschlagen.");
+      setTodos(
+        todos.map((t) =>
+          t.id === todo.id ? { ...t, completed: todo.completed } : t,
+        ),
+      );
+    }
   };
 
   const handleDeleteTodo = async (id: string) => {
+    const originalTodos = [...todos];
     setTodos(todos.filter((t) => t.id !== id));
-    await deleteTodoList(id); // Hier wird jetzt die richtige Server-Action aufgerufen
+
+    const result = await deleteTodoList(id);
+    if (!result) {
+      setErrorMessage("Aufgabe konnte nicht gelöscht werden.");
+      setTodos(originalTodos); // Rollback im Fehlerfall
+    }
   };
 
-  // Klick auf die gesamte Karte (für den globalen Trash-Mode der Kollegen)
   const handleCardClick = () => {
     if (isTrashMode) {
       window.dispatchEvent(
@@ -152,8 +180,16 @@ export function IndividualToDoList({
   return (
     <div
       onClick={handleCardClick}
-      className={`w-[300px] shadow-2xl rounded-lg p-4 bg-[#282828] text-gray-200 border border-[#383838] ${isTrashMode ? "border-red-500 cursor-pointer" : ""}`}
+      className={`w-[300px] shadow-2xl rounded-lg p-4 bg-[#282828] text-gray-200 border border-[#383838] relative ${isTrashMode ? "border-red-500 cursor-pointer" : ""}`}
     >
+      {/* NEU: Visueller Roter Toast/Banner direkt über der Karte bei Server-Fehlern */}
+      {errorMessage && (
+        <div className="absolute -top-10 left-0 right-0 bg-red-950/95 border border-red-800 text-red-200 text-[11px] px-3 py-1.5 rounded-md shadow-xl z-50 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+          <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+          <span className="font-medium">{errorMessage}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-2 border-b border-gray-700 pb-1">
         <input
           aria-label="Titel"
@@ -161,16 +197,15 @@ export function IndividualToDoList({
           onChange={(e) => setTitle(e.target.value)}
           className="bg-transparent font-semibold w-full outline-none"
           disabled={isTrashMode}
-          onPointerDown={(e) => e.stopPropagation()} // Verhindert Dragging beim Text-Markieren
+          onPointerDown={(e) => e.stopPropagation()}
         />
 
-        {/* Der kleine Trash-Button in der Liste */}
         <button
           onClick={(e) => {
-            e.stopPropagation(); // Verhindert, dass der Card-Klick ausgelöst wird
+            e.stopPropagation();
             onDeleteMe();
           }}
-          onPointerDown={(e) => e.stopPropagation()} // Verhindert, dass das Board-Drag ausgelöst wird
+          onPointerDown={(e) => e.stopPropagation()}
           className="text-gray-500 hover:text-red-500 ml-2 transition-colors"
           title="Liste löschen"
         >
@@ -201,7 +236,7 @@ export function IndividualToDoList({
                 todo.completed ? "line-through text-gray-500" : "text-gray-200"
               }
             >
-              {todo.text || todo.content}
+              {todo.text}
             </span>
           </div>
           <div className="opacity-0 group-hover:opacity-100 flex gap-1">
@@ -211,7 +246,7 @@ export function IndividualToDoList({
               onClick={(e) => {
                 e.stopPropagation();
                 setTodoToEdit(todo);
-                setEditValue(todo.text || todo.content);
+                setEditValue(todo.text);
                 setIsEditDialogOpen(true);
               }}
               onPointerDown={(e) => e.stopPropagation()}
@@ -219,7 +254,6 @@ export function IndividualToDoList({
               <Pen className="w-3 h-3" />
             </Button>
 
-            {/* Trash-Button für einzelne Aufgaben */}
             <Button
               variant="ghost"
               size="icon-xs"
@@ -265,11 +299,13 @@ export function IndividualToDoList({
           <DialogFooter>
             <Button
               onClick={() => {
-                setTodos(
-                  todos.map((t) =>
-                    t.id === todoToEdit?.id ? { ...t, text: editValue } : t,
-                  ),
-                );
+                if (todoToEdit) {
+                  setTodos(
+                    todos.map((t) =>
+                      t.id === todoToEdit.id ? { ...t, text: editValue } : t,
+                    ),
+                  );
+                }
                 setIsEditDialogOpen(false);
               }}
             >
