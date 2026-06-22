@@ -15,14 +15,22 @@ model User {
 }
 
 model Board {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   title     String
   userId    String
-  user      User       @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  
+  x         Float    @default(150) // 
+  y         Float    @default(150) //
+
+  parentId  String?  
+  parent    Board?   @relation("SubBoards", fields: [parentId], references: [id], onDelete: Cascade)
+  subBoards Board[]  @relation("SubBoards")
   notes     Note[]
+  createdAt DateTime @default(now())
   todos     Todo[]
   todoLists TodoList[]
-  createdAt DateTime   @default(now())
+ 
 }
 
 model Note {
@@ -31,7 +39,7 @@ model Note {
   x         Float // Position X (für Drag & Drop)
   y         Float // Position Y
   boardId   String
-  board     Board    @relation(fields: [boardId], references: [id])
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
 

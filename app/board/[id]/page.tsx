@@ -2,6 +2,7 @@ import GetNodeBoard from "@/components/ui/get_node_Board";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { Board } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ async function getBreadcrumbs(boardId: string): Promise<Breadcrumb[]> {
     where: { id: boardId },
     select: { id: true, title: true, parentId: true },
   });
+
   if (!board) return [];
   if (board.parentId) {
     const parentCrumbs = await getBreadcrumbs(board.parentId);
@@ -31,12 +33,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: board ? `${board.title} | Milanote` : "Board" };
 }
 
-// 3. Die eigentliche, dynamische Board-Zentrale
+// 3. Die eigentliche Seite
 export default async function BoardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const boardId = id;
 
-  // Basis-Boarddaten laden
   const board = await prisma.board.findUnique({
     where: { id: boardId },
     include: {
@@ -47,16 +48,8 @@ export default async function BoardPage({ params }: { params: Promise<{ id: stri
 
   if (!board) return notFound();
 
-  const dbTodoLists = await prisma.todoList.findMany({
-    where: { boardId: boardId },
-  });
-  const dbTodos = await prisma.todo.findMany({
-    where: { boardId: boardId },
-  });
-
   const breadcrumbs = await getBreadcrumbs(boardId);
 
-  // Daten für das UI aufbereiten
   const initialNodes = board.notes.map((note) => ({
     id: note.id,
     x: note.x,
@@ -64,7 +57,7 @@ export default async function BoardPage({ params }: { params: Promise<{ id: stri
     content: note.content || "",
   }));
 
-  const initialSubBoards = (board.subBoards ?? []).map((sb: any) => ({
+  const initialSubBoards = (board.subBoards ?? []).map((sb: Board) => ({
     id: sb.id,
     x: sb.x,
     y: sb.y,
@@ -72,23 +65,14 @@ export default async function BoardPage({ params }: { params: Promise<{ id: stri
     cardCount: 0,
   }));
 
-  const formattedTodos = dbTodos.map((todo: any) => ({
-    id: todo.id,
-    text: todo.content, 
-    completed: todo.completed,
-    todoListId: todo.todoListId,
-  }));
-
   return (
     <div className="w-screen h-screen overflow-hidden">
       <GetNodeBoard
-        key={boardId} 
+        key={boardId} // Der magische Reload-Fix
         boardId={boardId}
-        breadcrumbs={breadcrumbs} 
+        breadcrumbs={breadcrumbs}
         initialNodes={initialNodes}
         initialSubBoards={initialSubBoards}
-        initialTodos={formattedTodos}    
-        initialTodoLists={dbTodoLists}   
       />
     </div>
   );
