@@ -11,8 +11,10 @@ import FileNodeManager from "@/components/ui/file_node";
 import { createText } from "@/app/actions/createText";
 import { deleteText } from "@/app/actions/deleteText";
 import { updatePosition } from "@/app/actions/updatePosition";
-import { createSubBoard } from "@/app/actions/createSubBoard"; // <-- NEU
-import { updateSubBoardTitle } from "@/app/actions/updateSubBoardTitle"; // <-- NEU
+import { createSubBoard } from "@/app/actions/createSubBoard";
+import { updateSubBoardTitle } from "@/app/actions/updateSubBoardTitle";
+
+import toast from "react-hot-toast";
 
 import {
   Search,
@@ -105,6 +107,10 @@ export default function GetNodeBoard({
         setNodes((prev) =>
           prev.map((n) => (n.id === tempId ? { ...n, id: result.data.id } : n))
         );
+      } else {
+        // Rollback & Error-Toast
+        setNodes((prev) => prev.filter((n) => n.id !== tempId));
+        toast.error("Fehler beim Erstellen der Notiz.");
       }
     }
 
@@ -122,6 +128,10 @@ export default function GetNodeBoard({
         setSubBoards((prev) =>
           prev.map((b) => (b.id === tempId ? { ...b, id: result.data.id } : b))
         );
+      } else {
+        // Rollback & Error-Toast
+        setSubBoards((prev) => prev.filter((b) => b.id !== tempId));
+        toast.error("Fehler beim Erstellen des Boards.");
       }
     }
 
@@ -172,8 +182,7 @@ export default function GetNodeBoard({
       if (draggedNode) await updatePosition(draggedNode.id, draggedNode.x, draggedNode.y);
     } else if (dragging.type === "board") {
       const draggedBoard = subBoards.find((b) => b.id === dragging.id);
-      // Hierfür bräuchten wir idealerweise eine updateBoardPosition Server Action!
-      // if (draggedBoard) await updateBoardPosition(draggedBoard.id, draggedBoard.x, draggedBoard.y);
+      // Hierfür wird später die updateBoardPosition Server Action benötigt
     }
 
     setDragging(null);
@@ -231,18 +240,15 @@ export default function GetNodeBoard({
        <header className="h-14 bg-[#1a1a1a] flex items-center px-6 border-b border-gray-800 flex-shrink-0 z-50">
           {breadcrumbs.map((crumb, idx) => (
             <React.Fragment key={crumb.id}>
-              {/* Der Schrägstrich (wird nur angezeigt, wenn es ein davorliegendes Board gibt) */}
               {idx > 0 && <span className="mx-3 text-gray-500 font-light text-xl">/</span>}
               
-              {/* Der Board-Name */}
               <span
                 className={`transition-colors text-lg tracking-wide ${
                   idx === breadcrumbs.length - 1
-                    ? "text-white font-bold" // Aktuelles Board (Weiß & Fett)
-                    : "text-gray-400 hover:text-white cursor-pointer font-semibold" // Übergeordnete Boards (Grau & Klickbar)
+                    ? "text-white font-bold"
+                    : "text-gray-400 hover:text-white cursor-pointer font-semibold"
                 }`}
                 onClick={() => {
-                  // Wenn es nicht das aktuelle Board ist -> navigiere beim Klick dorthin zurück
                   if (idx !== breadcrumbs.length - 1) {
                     router.push(`/board/${crumb.id}`);
                   }
@@ -277,12 +283,12 @@ export default function GetNodeBoard({
                   initialTitle={board.title}
                   cardCount={board.cardCount}
                   onDelete={() => setSubBoards((prev) => prev.filter((b) => b.id !== board.id))}
-                  onUpdateTitle={async (newTitle: string) => { // <-- Hier :string hinzufügen
-                  setSubBoards((prev) =>
-                    prev.map((b) => (b.id === board.id ? { ...b, title: newTitle } : b))
-                  );
-                  await updateSubBoardTitle(board.id, newTitle, boardId);
-                }}
+                  onUpdateTitle={async (newTitle: string) => {
+                    setSubBoards((prev) =>
+                      prev.map((b) => (b.id === board.id ? { ...b, title: newTitle } : b))
+                    );
+                    await updateSubBoardTitle(board.id, newTitle, boardId);
+                  }}
                 />
               </div>
             ))}

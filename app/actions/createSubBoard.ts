@@ -8,7 +8,8 @@ export async function createSubBoard(parentId: string, x: number, y: number) {
       data: {
         title: "New Board",
         parentId: parentId,
-        userId: "user-1", 
+        //TODO: no fixed userID like it is rn
+        userId: "aaaa",
         x,
         y,
       },

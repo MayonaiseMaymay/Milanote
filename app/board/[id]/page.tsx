@@ -2,6 +2,7 @@ import GetNodeBoard from "@/components/ui/get_node_Board";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { Board } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,6 @@ export default async function BoardPage({ params }: { params: Promise<{ id: stri
 
   if (!board) return notFound();
 
-  // ---> HIER WAR DIE FEHLENDE ZEILE! <---
   const breadcrumbs = await getBreadcrumbs(boardId);
 
   const initialNodes = board.notes.map((note) => ({
@@ -57,7 +57,7 @@ export default async function BoardPage({ params }: { params: Promise<{ id: stri
     content: note.content || "",
   }));
 
-  const initialSubBoards = (board.subBoards ?? []).map((sb: any) => ({
+  const initialSubBoards = (board.subBoards ?? []).map((sb: Board) => ({
     id: sb.id,
     x: sb.x,
     y: sb.y,
@@ -70,7 +70,7 @@ export default async function BoardPage({ params }: { params: Promise<{ id: stri
       <GetNodeBoard
         key={boardId} // Der magische Reload-Fix
         boardId={boardId}
-        breadcrumbs={breadcrumbs} // Jetzt ist die Variable wieder da!
+        breadcrumbs={breadcrumbs}
         initialNodes={initialNodes}
         initialSubBoards={initialSubBoards}
       />
