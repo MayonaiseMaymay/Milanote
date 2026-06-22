@@ -64,6 +64,7 @@ export default function Get_node_SubBoard({
       <div className="w-full flex flex-col items-center text-center">
         {isEditing ? (
           <input
+            aria-label="Board Titel"
             ref={inputRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}

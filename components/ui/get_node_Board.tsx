@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Get_node_Text from "./get_node_Text";
 import Get_node_SubBoard from "./get_node_SubBoard";
@@ -103,22 +103,57 @@ export default function GetNodeBoard({
   const [nodes, setNodes] = useState<NodeItem[]>(initialNodes);
   const [subBoards, setSubBoards] = useState<SubBoardItem[]>(initialSubBoards);
   const [links, setLinks] = useState<LinkItem[]>([]);
-
-  // State mit den initialen Todo-Listen aus der DB befüllen
   const [todoLists, setTodoLists] = useState<ListInstance[]>(initialTodoLists);
 
   const [dragging, setDragging] = useState<{
     type: "node" | "link" | "board" | "todo";
     id: string;
+    initialX: number; // Startposition des Elements
+    initialY: number;
+    startX: number; // Startposition der Maus
+    startY: number;
   } | null>(null);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  // --- NEU: ZOOM LOGIK ---
+  const [scale, setScale] = useState(1);
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const mainElement = mainRef.current;
+    if (!mainElement) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Wenn Strg (Windows) oder Cmd (Mac) gedrückt ist
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault(); // Blockiert den normalen Browser-Zoom!
+
+        setScale((prev) => {
+          // Zoom-Berechnung
+          const zoomFactor = e.deltaY * -0.002;
+          const newScale = prev + zoomFactor;
+          // Begrenzt den Zoom zwischen 20% (Rauszoomen) und 200% (Reinzoomen)
+          return Math.min(Math.max(0.2, newScale), 2);
+        });
+      }
+    };
+
+    // WICHTIG: { passive: false } erlaubt uns, den Browser-Standard zu blockieren
+    mainElement.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      mainElement.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
 
   // ================= DRAG & DROP LOGIK =================
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+
+    // Zoom-Faktor bei der Berechnung einbeziehen!
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+
     const nodeType = e.dataTransfer.getData("node-type");
 
     if (nodeType === "Note") {
@@ -127,7 +162,7 @@ export default function GetNodeBoard({
       const result = await createText({
         x,
         y,
-        boardId: boardId, // KORRIGIERT: Nutzt jetzt die dynamische boardId statt der statischen "board-1"
+        boardId: boardId,
         content: "",
       });
       if (result && result.success && result.data) {
@@ -174,31 +209,50 @@ export default function GetNodeBoard({
     x: number,
     y: number,
   ) => {
-    setDragging({ type, id });
-    setOffset({ x: e.clientX - x, y: e.clientY - y });
+    e.stopPropagation();
+    setDragging({
+      type,
+      id,
+      initialX: x,
+      initialY: y,
+      startX: e.clientX,
+      startY: e.clientY,
+    });
   };
 
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left - offset.x;
-    const y = e.clientY - rect.top - offset.y;
+
+    // Zoom-Faktor bei der Berechnung der Mausbewegung einbeziehen!
+    const dx = (e.clientX - dragging.startX) / scale;
+    const dy = (e.clientY - dragging.startY) / scale;
+
+    const newX = dragging.initialX + dx;
+    const newY = dragging.initialY + dy;
 
     if (dragging.type === "node") {
       setNodes((prev) =>
-        prev.map((n) => (n.id === dragging.id ? { ...n, x, y } : n)),
+        prev.map((n) =>
+          n.id === dragging.id ? { ...n, x: newX, y: newY } : n,
+        ),
       );
     } else if (dragging.type === "board") {
       setSubBoards((prev) =>
-        prev.map((b) => (b.id === dragging.id ? { ...b, x, y } : b)),
+        prev.map((b) =>
+          b.id === dragging.id ? { ...b, x: newX, y: newY } : b,
+        ),
       );
     } else if (dragging.type === "link") {
       setLinks((prev) =>
-        prev.map((l) => (l.id === dragging.id ? { ...l, x, y } : l)),
+        prev.map((l) =>
+          l.id === dragging.id ? { ...l, x: newX, y: newY } : l,
+        ),
       );
     } else if (dragging.type === "todo") {
       setTodoLists((prev) =>
-        prev.map((l) => (l.id === dragging.id ? { ...l, x, y } : l)),
+        prev.map((l) =>
+          l.id === dragging.id ? { ...l, x: newX, y: newY } : l,
+        ),
       );
     }
   };
@@ -232,7 +286,8 @@ export default function GetNodeBoard({
       <TrashButton />
 
       {/* ================= SIDEBAR ================= */}
-      <aside className="w-16 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
+      {/* Hinweis: shrink-0 hinzugefügt, damit das Raster die Sidebar nicht verdrängt */}
+      <aside className="w-16 shrink-0 bg-[#1a1a1a] border-r border-gray-800 flex flex-col items-center py-4 z-10">
         <div className="space-y-6 flex-1 w-full">
           <SidebarIcon
             icon={<Type size={20} />}
@@ -279,9 +334,10 @@ export default function GetNodeBoard({
       </aside>
 
       {/* ================= MAIN ================= */}
-      <div className="flex flex-col flex-1">
+      {/* Hinweis: overflow-hidden auf den Flex-Container angewandt, damit der Main-Container sauber bleibt */}
+      <div className="flex flex-col flex-1 overflow-hidden">
         {/* TOPBAR MIT DYNAMISCHEN BREADCRUMBS */}
-        <header className="h-14 bg-[#1a1a1a] flex items-center px-6 border-b border-gray-800 flex-shrink-0 z-50">
+        <header className="h-14 shrink-0 bg-[#1a1a1a] flex items-center px-6 border-b border-gray-800 z-50">
           {breadcrumbs.map((crumb, idx) => (
             <React.Fragment key={crumb.id}>
               {idx > 0 && (
@@ -308,13 +364,24 @@ export default function GetNodeBoard({
 
         {/* ================= CANVAS ================= */}
         <main
-          className="flex-1 relative bg-[#2a2a2a]"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
-          onPointerMove={onMove}
-          onPointerUp={stopDrag}
+          ref={mainRef}
+          className="flex-1 overflow-auto bg-[#2a2a2a] relative"
         >
-          <div className="relative w-full h-full">
+          <div
+            className="relative origin-top-left"
+            style={{
+              width: "5000px",
+              height: "5000px",
+              transform: `scale(${scale})`,
+              backgroundImage: "radial-gradient(#444 1.5px, transparent 1.5px)",
+              backgroundSize: "24px 24px",
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
+            onPointerMove={onMove}
+            onPointerUp={stopDrag}
+            onPointerLeave={stopDrag}
+          >
             {/* SUB-BOARDS RENDERN */}
             {subBoards.map((board) => (
               <div
